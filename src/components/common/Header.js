@@ -1,13 +1,20 @@
-// components/common/Header.js
+// src/components/common/Header.js
 import React from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import Login from '../auth/Login';
 
-const Header = ({ currentPage, setCurrentPage }) => {
+const Header = () => {
   const { currentUser, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   if (!currentUser) {
-    return <Login />;
+    return null;
   }
 
   return (
@@ -15,32 +22,33 @@ const Header = ({ currentPage, setCurrentPage }) => {
       <div className="container">
         <h2>Inventory Manager</h2>
         <nav>
-          <span 
-            className={currentPage === 'dashboard' ? 'active' : ''}
-            onClick={() => setCurrentPage('dashboard')}
+          <Link 
+            to="/dashboard" 
+            className={location.pathname === '/dashboard' ? 'active' : ''}
           >
             Dashboard
-          </span>
-          <span 
-            className={currentPage === 'inventory' ? 'active' : ''}
-            onClick={() => setCurrentPage('inventory')}
+          </Link>
+          <Link 
+            to="/products" 
+            className={location.pathname === '/products' ? 'active' : ''}
           >
             Products
-          </span>
+          </Link>
           {currentUser?.role === 'superadmin' && (
-            <span 
-              className={currentPage === 'admin' ? 'active' : ''}
-              onClick={() => setCurrentPage('admin')}
+            <Link 
+              to="/admin" 
+              className={location.pathname === '/admin' ? 'active' : ''}
             >
               Admin Panel
-            </span>
+            </Link>
           )}
-          <span>Reports</span>
         </nav>
         <div className="user-info">
           <span>Welcome, {currentUser?.name}</span>
           <span className="user-role">({currentUser?.role})</span>
-          <button className="btn btn-outline" onClick={logout}>Logout</button>
+          <button className="btn btn-outline" onClick={handleLogout}>
+            Logout
+          </button>
         </div>
       </div>
     </header>

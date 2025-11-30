@@ -253,3 +253,229 @@ nav span.active {
 .product-item:last-child {
   border-bottom: none;
 }
+
+/* Loading Spinner */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-container p {
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+/* Custom styles that work with Bootstrap */
+.app {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.main-content {
+  padding: 2rem 0;
+}
+
+/* Header customization */
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.header nav a {
+  color: white !important;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: background-color 0.3s ease;
+}
+
+.header nav a:hover,
+.header nav a.active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Card view improvements */
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+/* Table improvements */
+.table th {
+  border-top: none;
+  font-weight: 600;
+}
+
+/* Loading spinner */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Login page improvements */
+.login-container {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+.login-form {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+/* Badge improvements */
+.badge {
+  font-size: 0.75em;
+}
+
+/* Form improvements */
+.form-label {
+  font-weight: 500;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1rem 0;
+  }
+  
+  .table-responsive {
+    font-size: 0.875rem;
+  }
+  
+  .btn-group-sm .btn {
+    font-size: 0.775rem;
+  }
+}
+
+/* Progress Steps */
+.step-indicator {
+  position: relative;
+  padding: 1rem 0;
+}
+
+.step-indicator.active .step-number {
+  background: #0d6efd;
+  color: white;
+  border-color: #0d6efd;
+}
+
+.step-indicator.active .step-label {
+  color: #0d6efd;
+  font-weight: 600;
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #dee2e6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.5rem;
+  background: white;
+  font-weight: 600;
+  color: #6c757d;
+}
+
+.step-label {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+/* Card hover effects */
+.card {
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+/* Form enhancements */
+.form-control-lg {
+  border-radius: 0.5rem;
+}
+
+.input-group-text {
+  border-radius: 0.5rem 0 0 0.5rem;
+}
+
+/* Button enhancements */
+.btn {
+  border-radius: 0.5rem;
+  font-weight: 500;
+}
+
+/* Custom spacing */
+.card-body.p-4 {
+  padding: 2rem !important;
+}
+
+/* Import options cards */
+.card.h-100 {
+  min-height: 250px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .card-body.p-4 {
+    padding: 1.5rem !important;
+  }
+  
+  .step-indicator {
+    padding: 0.5rem 0;
+  }
+  
+  .step-number {
+    width: 35px;
+    height: 35px;
+    font-size: 0.9rem;
+  }
+}

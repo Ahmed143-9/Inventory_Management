@@ -1,22 +1,41 @@
-// components/auth/Login.js
-import React, { useState } from 'react';
+// src/components/auth/Login.js
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const { login, currentUser, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (currentUser && !loading) {
+      navigate('/dashboard');
+    }
+  }, [currentUser, loading, navigate]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const result = login(email, password);
     if (result.success) {
       setError('');
+      navigate('/dashboard');
     } else {
       setError(result.message);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="login-container">

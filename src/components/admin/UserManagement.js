@@ -1,4 +1,4 @@
-// components/admin/UserManagement.js
+// src/components/admin/UserManagement.js
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -11,13 +11,19 @@ const UserManagement = () => {
     password: '',
     role: 'user'
   });
+  const [message, setMessage] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const result = addUser(formData);
-    if (result) {
+    if (result.success) {
       setShowAddForm(false);
       setFormData({ name: '', email: '', password: '', role: 'user' });
+      setMessage('User created successfully!');
+      setTimeout(() => setMessage(''), 3000);
+    } else {
+      setMessage(result.message);
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -25,7 +31,11 @@ const UserManagement = () => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       const result = deleteUser(userId);
       if (!result.success) {
-        alert(result.message);
+        setMessage(result.message);
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        setMessage('User deleted successfully!');
+        setTimeout(() => setMessage(''), 3000);
       }
     }
   };
@@ -33,7 +43,7 @@ const UserManagement = () => {
   return (
     <div className="user-management">
       <div className="section-header">
-        <h2>User Management</h2>
+        <h3>User Management</h3>
         <button 
           className="btn btn-primary"
           onClick={() => setShowAddForm(true)}
@@ -42,10 +52,16 @@ const UserManagement = () => {
         </button>
       </div>
 
+      {message && (
+        <div className={`alert ${message.includes('successfully') ? 'alert-success' : 'alert-danger'}`}>
+          {message}
+        </div>
+      )}
+
       {showAddForm && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Add New User</h3>
+            <h4>Add New User</h4>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <input
@@ -102,6 +118,7 @@ const UserManagement = () => {
         <table>
           <thead>
             <tr>
+              <th>ID</th>
               <th>Name</th>
               <th>Email</th>
               <th>Role</th>
@@ -112,6 +129,7 @@ const UserManagement = () => {
           <tbody>
             {users.map(user => (
               <tr key={user.id}>
+                <td>{user.id}</td>
                 <td>{user.name}</td>
                 <td>{user.email}</td>
                 <td>

@@ -1,4 +1,4 @@
-// pages/Inventory.js
+// src/pages/Inventory.js
 import React from 'react';
 import { useInventory } from '../context/InventoryContext';
 import ProductList from '../components/inventory/ProductList';

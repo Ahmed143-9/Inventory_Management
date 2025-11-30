@@ -1,26 +1,24 @@
-// components/common/ProtectedRoute.js
+// src/components/common/ProtectedRoute.js
 import React from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth();
 
-  if (!currentUser) {
-    return (
-      <div className="unauthorized">
-        <h3>Access Denied</h3>
-        <p>Please log in to access this page.</p>
-      </div>
-    );
+  // Show nothing while loading
+  if (loading) {
+    return null;
   }
 
+  // Redirect to login if not authenticated
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Redirect to dashboard if admin access required but user is not admin
   if (adminOnly && currentUser.role !== 'superadmin') {
-    return (
-      <div className="unauthorized">
-        <h3>Access Denied</h3>
-        <p>You don't have permission to access this page.</p>
-      </div>
-    );
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;
