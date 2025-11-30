@@ -2,73 +2,78 @@
 import React, { useState, useEffect } from 'react';
 
 const ProductCard = ({ product, onUpdate, onDelete }) => {
+  // Each product card gets its OWN isolated state
   const [isEditing, setIsEditing] = useState(false);
-  const [editedProduct, setEditedProduct] = useState({});
+  const [editedProduct, setEditedProduct] = useState(null);
 
-  // Initialize editedProduct when product changes
-  useEffect(() => {
-    console.log(`🔄 ProductCard ${product.id} - Product updated:`, product);
-    setEditedProduct({ ...product });
-  }, [product]);
+  console.log(`🎯 ProductCard ${product.id} rendering - Editing: ${isEditing}`);
 
-  // Debug: Log when editing state changes
-  useEffect(() => {
-    console.log(`✏️ ProductCard ${product.id} - Editing:`, isEditing);
-    if (isEditing) {
-      console.log(`📝 ProductCard ${product.id} - Edited product:`, editedProduct);
-    }
-  }, [isEditing, editedProduct, product.id]);
+  // Initialize editedProduct ONLY when starting to edit THIS specific product
+  const startEditing = () => {
+    console.log(`🛠️ STARTING EDIT for product ${product.id}:`, product);
+    setEditedProduct({ 
+      name: product.name,
+      description: product.description,
+      quantity: product.quantity,
+      price: product.price,
+      category: product.category
+    });
+    setIsEditing(true);
+  };
 
   const handleSave = () => {
-    console.log(`💾 ProductCard ${product.id} - Saving:`, editedProduct);
+    if (!editedProduct) return;
+    
+    console.log(`💾 SAVING product ${product.id}:`, editedProduct);
     onUpdate(product.id, editedProduct);
     setIsEditing(false);
+    setEditedProduct(null);
   };
 
   const handleCancel = () => {
-    console.log(`❌ ProductCard ${product.id} - Canceling edit`);
-    setEditedProduct({ ...product });
+    console.log(`❌ CANCELLING edit for product ${product.id}`);
     setIsEditing(false);
+    setEditedProduct(null);
   };
 
-  // Quick quantity adjustments - DIRECT update, no local state
+  // Handle input changes for THIS product only
+  const handleInputChange = (field, value) => {
+    console.log(`📝 Product ${product.id} - Changing ${field} to:`, value);
+    setEditedProduct(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Quick actions - directly update without affecting other products
   const handleQuickQuantity = (change) => {
-    console.log(`🔢 ProductCard ${product.id} - Quick quantity change: ${change}`);
+    console.log(`🔢 Product ${product.id} - Quick quantity: ${change}`);
     const newQuantity = Math.max(0, product.quantity + change);
     onUpdate(product.id, { quantity: newQuantity });
   };
 
-  // Quick price adjustments - DIRECT update, no local state
   const handleQuickPrice = (change) => {
-    console.log(`💰 ProductCard ${product.id} - Quick price change: ${change}`);
+    console.log(`💰 Product ${product.id} - Quick price: ${change}`);
     const newPrice = Math.max(0, product.price + change);
     onUpdate(product.id, { price: parseFloat(newPrice.toFixed(2)) });
   };
 
-  // Set custom quantity - DIRECT update
   const handleCustomQuantity = () => {
-    console.log(`📝 ProductCard ${product.id} - Custom quantity prompt`);
     const newQuantity = prompt(`Set quantity for ${product.name}:`, product.quantity);
     if (newQuantity !== null) {
       const quantity = parseInt(newQuantity);
       if (!isNaN(quantity) && quantity >= 0) {
         onUpdate(product.id, { quantity });
-      } else {
-        alert('Please enter a valid number for quantity.');
       }
     }
   };
 
-  // Set custom price - DIRECT update
   const handleCustomPrice = () => {
-    console.log(`💵 ProductCard ${product.id} - Custom price prompt`);
     const newPrice = prompt(`Set price for ${product.name}:`, product.price);
     if (newPrice !== null) {
       const price = parseFloat(newPrice);
       if (!isNaN(price) && price >= 0) {
         onUpdate(product.id, { price: parseFloat(price.toFixed(2)) });
-      } else {
-        alert('Please enter a valid number for price.');
       }
     }
   };
@@ -95,24 +100,24 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
       </div>
       
       <div className="card-body">
-        {isEditing ? (
-          // Full Edit Mode
+        {isEditing && editedProduct ? (
+          // Edit Mode - ONLY for this specific product
           <div className="edit-form">
             <div className="mb-2">
               <label className="form-label small">Name</label>
               <input
                 type="text"
                 className="form-control form-control-sm"
-                value={editedProduct.name || ''}
-                onChange={(e) => setEditedProduct({...editedProduct, name: e.target.value})}
+                value={editedProduct.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
               />
             </div>
             <div className="mb-2">
               <label className="form-label small">Description</label>
               <textarea
                 className="form-control form-control-sm"
-                value={editedProduct.description || ''}
-                onChange={(e) => setEditedProduct({...editedProduct, description: e.target.value})}
+                value={editedProduct.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
                 rows="2"
               />
             </div>
@@ -122,8 +127,8 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
                 <input
                   type="number"
                   className="form-control form-control-sm"
-                  value={editedProduct.quantity || ''}
-                  onChange={(e) => setEditedProduct({...editedProduct, quantity: parseInt(e.target.value) || 0})}
+                  value={editedProduct.quantity}
+                  onChange={(e) => handleInputChange('quantity', parseInt(e.target.value) || 0)}
                   min="0"
                 />
               </div>
@@ -133,8 +138,8 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
                   type="number"
                   step="0.01"
                   className="form-control form-control-sm"
-                  value={editedProduct.price || ''}
-                  onChange={(e) => setEditedProduct({...editedProduct, price: parseFloat(e.target.value) || 0})}
+                  value={editedProduct.price}
+                  onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
                   min="0"
                 />
               </div>
@@ -144,8 +149,8 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
               <input
                 type="text"
                 className="form-control form-control-sm"
-                value={editedProduct.category || ''}
-                onChange={(e) => setEditedProduct({...editedProduct, category: e.target.value})}
+                value={editedProduct.category}
+                onChange={(e) => handleInputChange('category', e.target.value)}
               />
             </div>
             <div className="d-grid gap-2">
@@ -160,7 +165,7 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
             </div>
           </div>
         ) : (
-          // View Mode with Quick Controls
+          // View Mode
           <>
             <p className="card-text text-muted small mb-3">{product.description}</p>
             
@@ -177,7 +182,6 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
                 </span>
               </div>
               
-              {/* Main Quantity Controls */}
               <div className="d-flex align-items-center justify-content-center mb-1">
                 <button
                   className="btn btn-outline-danger btn-sm"
@@ -205,7 +209,6 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
                 </button>
               </div>
 
-              {/* Bulk Quantity Controls - Below main buttons */}
               <div className="d-flex justify-content-center align-items-center gap-2">
                 <button
                   className="btn btn-outline-warning btn-xs"
@@ -238,7 +241,6 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
             <div className="mb-3">
               <small className="text-muted fw-semibold d-block mb-2">Price</small>
               
-              {/* Main Price Controls */}
               <div className="d-flex align-items-center justify-content-center mb-1">
                 <button
                   className="btn btn-outline-secondary btn-sm"
@@ -262,7 +264,6 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
                 </button>
               </div>
 
-              {/* Bulk Price Controls - Below main buttons */}
               <div className="d-flex justify-content-center align-items-center gap-2">
                 <button
                   className="btn btn-outline-warning btn-xs"
@@ -325,17 +326,13 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
         )}
       </div>
       
-      {/* Card Footer - Actions */}
+      {/* Card Footer */}
       {!isEditing && (
         <div className="card-footer">
           <div className="d-grid gap-2">
             <button 
               className="btn btn-warning btn-sm"
-              onClick={() => {
-                console.log(`🛠️ ProductCard ${product.id} - Starting full edit`);
-                setEditedProduct({ ...product });
-                setIsEditing(true);
-              }}
+              onClick={startEditing}
               title="Edit all product details"
             >
               <i className="bi bi-pencil me-1"></i>
@@ -344,7 +341,6 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
             <button 
               className="btn btn-danger btn-sm"
               onClick={() => {
-                console.log(`🗑️ ProductCard ${product.id} - Delete initiated`);
                 if (window.confirm(`Are you sure you want to delete "${product.name}"?`)) {
                   onDelete(product.id);
                 }
