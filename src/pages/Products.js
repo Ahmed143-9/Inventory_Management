@@ -50,25 +50,25 @@ const Products = () => {
 
   return (
     <ProtectedRoute>
-      <div className="products-page">
-        {/* Header Section */}
-        <div className="row mb-4">
-          <div className="col-md-12">
+      <div className="products-page container-fluid px-3 px-md-4 px-lg-5">
+        {/* Header Section - Full Width */}
+        <div className="row mb-3">
+          <div className="col-12">
             <div className="card border-0 shadow-sm">
-              <div className="card-body">
+              <div className="card-body py-3">
                 <div className="row align-items-center">
-                  <div className="col-md-6">
-                    <h2 className="card-title mb-2">
+                  <div className="col-md-8">
+                    <h2 className="card-title mb-1">
                       <i className="bi bi-box-seam text-primary me-2"></i>
                       Product Management
                     </h2>
-                    <p className="text-muted mb-0">
+                    <p className="text-muted mb-0 small">
                       Manage your inventory products, add new items, or bulk import from CSV.
                     </p>
                   </div>
-                  <div className="col-md-6 text-end">
-                    <div className="bg-primary bg-opacity-10 rounded p-3 d-inline-block">
-                      <i className="bi bi-graph-up text-primary fs-2"></i>
+                  <div className="col-md-4 text-end">
+                    <div className="bg-primary bg-opacity-10 rounded p-2 d-inline-block">
+                      <i className="bi bi-graph-up text-primary fs-4"></i>
                     </div>
                   </div>
                 </div>
@@ -77,11 +77,11 @@ const Products = () => {
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="row mb-4">
-          <div className="col-md-12">
+        {/* Tab Navigation - Full Width */}
+        <div className="row mb-3">
+          <div className="col-12">
             <div className="card border-0 shadow-sm">
-              <div className="card-body py-3">
+              <div className="card-body py-2">
                 <ul className="nav nav-pills nav-fill" role="tablist">
                   <li className="nav-item" role="presentation">
                     <button
@@ -123,9 +123,9 @@ const Products = () => {
           </div>
         </div>
 
-        {/* Tab Content */}
+        {/* Tab Content - Full Width */}
         <div className="row">
-          <div className="col-md-12">
+          <div className="col-12">
             <div className="tab-content">
               <div className="tab-pane fade show active">
                 {renderTabContent()}
@@ -134,29 +134,29 @@ const Products = () => {
           </div>
         </div>
 
-        {/* Quick Stats Footer */}
-        <div className="row mt-4">
-          <div className="col-md-12">
+        {/* Quick Stats Footer - Full Width */}
+        <div className="row mt-3">
+          <div className="col-12">
             <div className="card border-0 bg-light">
-              <div className="card-body py-3">
+              <div className="card-body py-2">
                 <div className="row text-center">
-                  <div className="col-md-3">
+                  <div className="col-6 col-md-3">
                     <small className="text-muted d-block">Total Products</small>
                     <strong className="text-primary">{products.length}</strong>
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-6 col-md-3">
                     <small className="text-muted d-block">Categories</small>
                     <strong className="text-success">
                       {[...new Set(products.map(p => p.category))].length}
                     </strong>
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-6 col-md-3">
                     <small className="text-muted d-block">Low Stock</small>
                     <strong className="text-warning">
                       {products.filter(p => p.quantity < 10 && p.quantity > 0).length}
                     </strong>
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-6 col-md-3">
                     <small className="text-muted d-block">Out of Stock</small>
                     <strong className="text-danger">
                       {products.filter(p => p.quantity === 0).length}

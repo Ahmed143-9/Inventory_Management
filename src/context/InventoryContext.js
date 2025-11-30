@@ -14,34 +14,9 @@ export const useInventory = () => {
 export const InventoryProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [nextId, setNextId] = useState(101); // Start from 101
 
-  // Generate short 3-digit unique ID (100-999)
-  // Most robust short ID generator
-const generateShortId = () => {
-  const usedIds = new Set(products.map(p => p.id));
-  
-  // Try sequential first (101, 102, 103...)
-  if (products.length === 0) return 101;
-  
-  const maxId = Math.max(...products.map(p => p.id));
-  const nextSequential = maxId + 1;
-  
-  // If sequential is within 3-digit range, use it
-  if (nextSequential <= 999) {
-    return nextSequential;
-  }
-  
-  // Otherwise find the smallest available ID
-  for (let id = 101; id <= 999; id++) {
-    if (!usedIds.has(id)) {
-      return id;
-    }
-  }
-  
-  // Fallback (should rarely happen)
-  return Date.now() % 1000;
-};
-  // Load products from localStorage on component mount
+  // Load products and determine next ID
   useEffect(() => {
     const loadProducts = () => {
       try {
@@ -49,8 +24,14 @@ const generateShortId = () => {
         if (savedProducts) {
           const parsedProducts = JSON.parse(savedProducts);
           setProducts(parsedProducts);
+          
+          // Find the highest ID and set nextId to highest + 1
+          if (parsedProducts.length > 0) {
+            const maxId = Math.max(...parsedProducts.map(p => p.id));
+            setNextId(maxId + 1);
+          }
         } else {
-          // Initialize with some sample data
+          // Initialize with sample data
           const initialProducts = [
             {
               id: 101,
@@ -81,12 +62,13 @@ const generateShortId = () => {
             }
           ];
           setProducts(initialProducts);
+          setNextId(104); // Next ID after 103
           localStorage.setItem('inventoryProducts', JSON.stringify(initialProducts));
         }
       } catch (error) {
         console.error('Error loading products:', error);
-        // Initialize with empty array if there's an error
         setProducts([]);
+        setNextId(101);
       } finally {
         setLoading(false);
       }
@@ -97,34 +79,33 @@ const generateShortId = () => {
 
   // Save to localStorage whenever products change
   useEffect(() => {
-    if (!loading && products.length > 0) {
+    if (!loading) {
       try {
         localStorage.setItem('inventoryProducts', JSON.stringify(products));
-        console.log('Products saved to localStorage:', products.map(p => ({ id: p.id, name: p.name })));
+        console.log('Products saved. Current IDs:', products.map(p => p.id));
       } catch (error) {
         console.error('Error saving products:', error);
       }
     }
   }, [products, loading]);
 
-  const addProduct = (productData) => {
-    console.log('Adding new product:', productData);
-    const newProduct = {
-      id: generateShortId(), // Use the new short ID generator
-      ...productData,
-      createdAt: new Date().toISOString()
-    };
-    console.log('New product with ID:', newProduct.id);
-    setProducts(prev => {
-      const updatedProducts = [...prev, newProduct];
-      console.log('Updated products array IDs:', updatedProducts.map(p => p.id));
-      return updatedProducts;
-    });
-    return newProduct;
+ const addProduct = (productData) => {
+  // Simple sequential ID based on current products
+  const newId = products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 101;
+  
+  const newProduct = {
+    id: newId,
+    ...productData,
+    createdAt: new Date().toISOString()
   };
+  
+  console.log('Adding product with ID:', newProduct.id);
+  
+  setProducts(prev => [...prev, newProduct]);
+  return newProduct;
+};
 
   const updateProduct = (productId, updatedData) => {
-    console.log(`Updating product ${productId}:`, updatedData);
     setProducts(prev => 
       prev.map(product => 
         product.id === productId ? { ...product, ...updatedData, updatedAt: new Date().toISOString() } : product
@@ -133,7 +114,6 @@ const generateShortId = () => {
   };
 
   const deleteProduct = (productId) => {
-    console.log(`Deleting product ${productId}`);
     setProducts(prev => prev.filter(product => product.id !== productId));
   };
 

@@ -112,7 +112,7 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
 
       {/* Products Table */}
       <div className="table-responsive">
-        <table className="table table-striped table-hover">
+        <table className="table table-striped table-hover table-sm">
           <thead className="table-dark">
             <tr>
               <th>ID</th>
