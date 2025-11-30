@@ -14,22 +14,27 @@ export const useInventory = () => {
 export const InventoryProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [nextId, setNextId] = useState(101); // Start from 101
 
-  // Load products and determine next ID
+  // Generate unique sequential ID
+  const generateNewId = (currentProducts) => {
+    if (currentProducts.length === 0) return 101;
+    
+    // Find the maximum ID currently in use
+    const maxId = Math.max(...currentProducts.map(p => p.id));
+    return maxId + 1;
+  };
+
+  // Load products from localStorage on component mount
   useEffect(() => {
     const loadProducts = () => {
       try {
         const savedProducts = localStorage.getItem('inventoryProducts');
+        console.log('Loading from localStorage:', savedProducts);
+        
         if (savedProducts) {
           const parsedProducts = JSON.parse(savedProducts);
+          console.log('Parsed products:', parsedProducts);
           setProducts(parsedProducts);
-          
-          // Find the highest ID and set nextId to highest + 1
-          if (parsedProducts.length > 0) {
-            const maxId = Math.max(...parsedProducts.map(p => p.id));
-            setNextId(maxId + 1);
-          }
         } else {
           // Initialize with sample data
           const initialProducts = [
@@ -61,14 +66,14 @@ export const InventoryProvider = ({ children }) => {
               createdAt: new Date().toISOString()
             }
           ];
+          console.log('Setting initial products:', initialProducts);
           setProducts(initialProducts);
-          setNextId(104); // Next ID after 103
           localStorage.setItem('inventoryProducts', JSON.stringify(initialProducts));
         }
       } catch (error) {
         console.error('Error loading products:', error);
+        // Initialize with empty array if there's an error
         setProducts([]);
-        setNextId(101);
       } finally {
         setLoading(false);
       }
@@ -82,39 +87,57 @@ export const InventoryProvider = ({ children }) => {
     if (!loading) {
       try {
         localStorage.setItem('inventoryProducts', JSON.stringify(products));
-        console.log('Products saved. Current IDs:', products.map(p => p.id));
+        console.log('✅ Products saved to localStorage. Current products:', products);
       } catch (error) {
         console.error('Error saving products:', error);
       }
     }
   }, [products, loading]);
 
- const addProduct = (productData) => {
-  // Simple sequential ID based on current products
-  const newId = products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 101;
-  
-  const newProduct = {
-    id: newId,
-    ...productData,
-    createdAt: new Date().toISOString()
+  const addProduct = (productData) => {
+    console.log('🆕 Adding new product:', productData);
+    
+    const newId = generateNewId(products);
+    const newProduct = {
+      id: newId,
+      ...productData,
+      createdAt: new Date().toISOString()
+    };
+    
+    console.log('🆔 New product ID:', newId);
+    console.log('📦 New product:', newProduct);
+    
+    setProducts(prev => {
+      const updatedProducts = [...prev, newProduct];
+      console.log('📊 Updated products array:', updatedProducts);
+      return updatedProducts;
+    });
+    
+    return newProduct;
   };
-  
-  console.log('Adding product with ID:', newProduct.id);
-  
-  setProducts(prev => [...prev, newProduct]);
-  return newProduct;
-};
 
   const updateProduct = (productId, updatedData) => {
-    setProducts(prev => 
-      prev.map(product => 
-        product.id === productId ? { ...product, ...updatedData, updatedAt: new Date().toISOString() } : product
-      )
-    );
+    console.log('✏️ Updating product:', productId, 'with data:', updatedData);
+    
+    setProducts(prev => {
+      const updated = prev.map(product => 
+        product.id === productId 
+          ? { ...product, ...updatedData, updatedAt: new Date().toISOString() } 
+          : product
+      );
+      console.log('🔄 After update:', updated);
+      return updated;
+    });
   };
 
   const deleteProduct = (productId) => {
-    setProducts(prev => prev.filter(product => product.id !== productId));
+    console.log('🗑️ Deleting product:', productId);
+    
+    setProducts(prev => {
+      const updated = prev.filter(product => product.id !== productId);
+      console.log('✅ After deletion:', updated);
+      return updated;
+    });
   };
 
   const value = {

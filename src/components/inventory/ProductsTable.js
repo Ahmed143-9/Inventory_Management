@@ -6,7 +6,6 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [editingId, setEditingId] = useState(null);
   const [editedProduct, setEditedProduct] = useState({});
-  const [quickEdit, setQuickEdit] = useState({ id: null, field: null });
 
   const categories = ['all', ...new Set(products.map(product => product.category))];
 
@@ -36,10 +35,10 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
   };
 
   // Full edit mode
- const handleEdit = (product) => {
-  setEditingId(product.id);
-  setEditedProduct({ ...product }); // Make sure to create a copy
-};
+  const handleEdit = (product) => {
+    setEditingId(product.id);
+    setEditedProduct({ ...product });
+  };
 
   const handleSave = (productId) => {
     onUpdate(productId, editedProduct);
@@ -123,8 +122,7 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
               <th>Price</th>
               <th>Status</th>
               <th>Total Value</th>
-              <th>Quick Actions</th>
-              <th>Full Edit</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -177,7 +175,7 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
                   )}
                 </td>
 
-                {/* Quantity - With Quick Controls */}
+                {/* Quantity - With Compact Controls */}
                 <td>
                   {editingId === product.id ? (
                     <input
@@ -188,55 +186,57 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
                       min="0"
                     />
                   ) : (
-                    <div className="d-flex align-items-center gap-2">
-                      <button
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => handleQuickQuantity(product.id, -1)}
-                        disabled={product.quantity <= 0}
-                        title="Decrease by 1"
-                      >
-                        <i className="bi bi-dash"></i>
-                      </button>
-                      
-                      <span className={`
-                        fw-bold text-center min-width-50 
+                    <div className="text-center">
+                      {/* Main Value */}
+                      <div className={`
+                        fw-bold mb-1
                         ${product.quantity === 0 ? 'text-danger' : 
                           product.quantity < 10 ? 'text-warning' : 'text-success'}
                       `}>
                         {product.quantity}
-                      </span>
+                      </div>
                       
-                      <button
-                        className="btn btn-sm btn-outline-success"
-                        onClick={() => handleQuickQuantity(product.id, 1)}
-                        title="Increase by 1"
-                      >
-                        <i className="bi bi-plus"></i>
-                      </button>
-
-                      {/* Bulk Quantity Controls */}
-                      <div className="btn-group btn-group-sm ms-1">
+                      {/* Compact Controls */}
+                      <div className="d-flex justify-content-center gap-1">
                         <button
-                          className="btn btn-outline-warning"
+                          className="btn btn-outline-danger btn-xs"
+                          onClick={() => handleQuickQuantity(product.id, -1)}
+                          disabled={product.quantity <= 0}
+                          title="Decrease by 1"
+                        >
+                          <i className="bi bi-dash"></i>
+                        </button>
+                        
+                        <button
+                          className="btn btn-outline-warning btn-xs"
                           onClick={() => handleQuickQuantity(product.id, -5)}
                           disabled={product.quantity < 5}
                           title="Decrease by 5"
                         >
                           -5
                         </button>
+                        
                         <button
-                          className="btn btn-outline-info"
+                          className="btn btn-outline-info btn-xs"
                           onClick={() => handleQuickQuantity(product.id, 5)}
                           title="Increase by 5"
                         >
                           +5
+                        </button>
+                        
+                        <button
+                          className="btn btn-outline-success btn-xs"
+                          onClick={() => handleQuickQuantity(product.id, 1)}
+                          title="Increase by 1"
+                        >
+                          <i className="bi bi-plus"></i>
                         </button>
                       </div>
                     </div>
                   )}
                 </td>
 
-                {/* Price - With Quick Controls */}
+                {/* Price - With Compact Controls */}
                 <td>
                   {editingId === product.id ? (
                     <div className="input-group input-group-sm">
@@ -251,44 +251,46 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
                       />
                     </div>
                   ) : (
-                    <div className="d-flex align-items-center gap-2">
-                      <button
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => handleQuickPrice(product.id, -1)}
-                        disabled={product.price <= 1}
-                        title="Decrease by $1"
-                      >
-                        <i className="bi bi-dash"></i>
-                      </button>
-                      
-                      <strong className="text-primary min-width-60 text-center">
+                    <div className="text-center">
+                      {/* Main Value */}
+                      <div className="fw-bold text-primary mb-1">
                         ${product.price}
-                      </strong>
+                      </div>
                       
-                      <button
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => handleQuickPrice(product.id, 1)}
-                        title="Increase by $1"
-                      >
-                        <i className="bi bi-plus"></i>
-                      </button>
-
-                      {/* Bulk Price Controls */}
-                      <div className="btn-group btn-group-sm ms-1">
+                      {/* Compact Controls */}
+                      <div className="d-flex justify-content-center gap-1">
                         <button
-                          className="btn btn-outline-warning"
+                          className="btn btn-outline-secondary btn-xs"
+                          onClick={() => handleQuickPrice(product.id, -1)}
+                          disabled={product.price <= 1}
+                          title="Decrease by $1"
+                        >
+                          <i className="bi bi-dash"></i>
+                        </button>
+                        
+                        <button
+                          className="btn btn-outline-warning btn-xs"
                           onClick={() => handleQuickPrice(product.id, -5)}
                           disabled={product.price <= 5}
                           title="Decrease by $5"
                         >
                           -5
                         </button>
+                        
                         <button
-                          className="btn btn-outline-info"
+                          className="btn btn-outline-info btn-xs"
                           onClick={() => handleQuickPrice(product.id, 5)}
                           title="Increase by $5"
                         >
                           +5
+                        </button>
+                        
+                        <button
+                          className="btn btn-outline-secondary btn-xs"
+                          onClick={() => handleQuickPrice(product.id, 1)}
+                          title="Increase by $1"
+                        >
+                          <i className="bi bi-plus"></i>
                         </button>
                       </div>
                     </div>
@@ -309,35 +311,7 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
                   </strong>
                 </td>
 
-                {/* Quick Actions */}
-                <td>
-                  <div className="btn-group-vertical btn-group-sm">
-                    <button
-                      className="btn btn-outline-primary btn-sm"
-                      onClick={() => handleQuickQuantity(product.id, 10)}
-                      title="Add 10 to quantity"
-                    >
-                      <i className="bi bi-arrow-up-short"></i>10
-                    </button>
-                    <button
-                      className="btn btn-outline-warning btn-sm"
-                      onClick={() => {
-                        const newQuantity = prompt(`Set quantity for ${product.name}:`, product.quantity);
-                        if (newQuantity !== null) {
-                          const quantity = parseInt(newQuantity);
-                          if (!isNaN(quantity) && quantity >= 0) {
-                            onUpdate(product.id, { quantity });
-                          }
-                        }
-                      }}
-                      title="Set custom quantity"
-                    >
-                      <i className="bi bi-pencil-square"></i>
-                    </button>
-                  </div>
-                </td>
-
-                {/* Full Edit Actions */}
+                {/* Actions */}
                 <td>
                   {editingId === product.id ? (
                     <div className="btn-group btn-group-sm">

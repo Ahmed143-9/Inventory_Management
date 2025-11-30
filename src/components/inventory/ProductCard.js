@@ -3,53 +3,51 @@ import React, { useState, useEffect } from 'react';
 
 const ProductCard = ({ product, onUpdate, onDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedProduct, setEditedProduct] = useState({ ...product });
+  const [editedProduct, setEditedProduct] = useState({});
 
-  // Enhanced debugging
+  // Initialize editedProduct when product changes
   useEffect(() => {
-    console.log(`🔄 ProductCard ${product.id} mounted/updated:`, {
-      id: product.id,
-      name: product.name,
-      quantity: product.quantity,
-      isEditing: isEditing
-    });
-  }, [product, isEditing]);
+    console.log(`🔄 ProductCard ${product.id} - Product updated:`, product);
+    setEditedProduct({ ...product });
+  }, [product]);
 
+  // Debug: Log when editing state changes
   useEffect(() => {
+    console.log(`✏️ ProductCard ${product.id} - Editing:`, isEditing);
     if (isEditing) {
-      console.log(`✏️ ProductCard ${product.id} entered edit mode`);
+      console.log(`📝 ProductCard ${product.id} - Edited product:`, editedProduct);
     }
-  }, [isEditing, product.id]);
+  }, [isEditing, editedProduct, product.id]);
 
   const handleSave = () => {
-    console.log(`💾 Saving product ${product.id}:`, editedProduct);
+    console.log(`💾 ProductCard ${product.id} - Saving:`, editedProduct);
     onUpdate(product.id, editedProduct);
     setIsEditing(false);
   };
 
   const handleCancel = () => {
-    console.log(`❌ Canceling edit for product ${product.id}`);
+    console.log(`❌ ProductCard ${product.id} - Canceling edit`);
     setEditedProduct({ ...product });
     setIsEditing(false);
   };
 
-  // Quick quantity adjustments
+  // Quick quantity adjustments - DIRECT update, no local state
   const handleQuickQuantity = (change) => {
-    console.log(`🔢 Quick quantity change for ${product.id} (${product.name}): ${change}`);
+    console.log(`🔢 ProductCard ${product.id} - Quick quantity change: ${change}`);
     const newQuantity = Math.max(0, product.quantity + change);
     onUpdate(product.id, { quantity: newQuantity });
   };
 
-  // Quick price adjustments
+  // Quick price adjustments - DIRECT update, no local state
   const handleQuickPrice = (change) => {
-    console.log(`💰 Quick price change for ${product.id} (${product.name}): ${change}`);
+    console.log(`💰 ProductCard ${product.id} - Quick price change: ${change}`);
     const newPrice = Math.max(0, product.price + change);
     onUpdate(product.id, { price: parseFloat(newPrice.toFixed(2)) });
   };
 
-  // Set custom quantity
+  // Set custom quantity - DIRECT update
   const handleCustomQuantity = () => {
-    console.log(`📝 Custom quantity prompt for ${product.id}`);
+    console.log(`📝 ProductCard ${product.id} - Custom quantity prompt`);
     const newQuantity = prompt(`Set quantity for ${product.name}:`, product.quantity);
     if (newQuantity !== null) {
       const quantity = parseInt(newQuantity);
@@ -61,9 +59,9 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
     }
   };
 
-  // Set custom price
+  // Set custom price - DIRECT update
   const handleCustomPrice = () => {
-    console.log(`💵 Custom price prompt for ${product.id}`);
+    console.log(`💵 ProductCard ${product.id} - Custom price prompt`);
     const newPrice = prompt(`Set price for ${product.name}:`, product.price);
     if (newPrice !== null) {
       const price = parseFloat(newPrice);
@@ -178,59 +176,60 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
                   {getStockText(product.quantity)}
                 </span>
               </div>
-              <div className="d-flex align-items-center justify-content-between">
-                <div className="btn-group btn-group-sm">
-                  <button
-                    className="btn btn-outline-danger"
-                    onClick={() => handleQuickQuantity(-1)}
-                    disabled={product.quantity <= 0}
-                    title="Decrease by 1"
-                  >
-                    <i className="bi bi-dash"></i>
-                  </button>
-                  <button
-                    className="btn btn-outline-warning"
-                    onClick={() => handleQuickQuantity(-5)}
-                    disabled={product.quantity < 5}
-                    title="Decrease by 5"
-                  >
-                    -5
-                  </button>
-                </div>
+              
+              {/* Main Quantity Controls */}
+              <div className="d-flex align-items-center justify-content-center mb-1">
+                <button
+                  className="btn btn-outline-danger btn-sm"
+                  onClick={() => handleQuickQuantity(-1)}
+                  disabled={product.quantity <= 0}
+                  title="Decrease by 1"
+                >
+                  <i className="bi bi-dash"></i>
+                </button>
                 
                 <span className={`
-                  fw-bold fs-5 mx-2 min-width-40 text-center
+                  fw-bold fs-5 mx-3 text-center min-width-50
                   ${product.quantity === 0 ? 'text-danger' : 
                     product.quantity < 10 ? 'text-warning' : 'text-success'}
                 `}>
                   {product.quantity}
                 </span>
                 
-                <div className="btn-group btn-group-sm">
-                  <button
-                    className="btn btn-outline-info"
-                    onClick={() => handleQuickQuantity(5)}
-                    title="Increase by 5"
-                  >
-                    +5
-                  </button>
-                  <button
-                    className="btn btn-outline-success"
-                    onClick={() => handleQuickQuantity(1)}
-                    title="Increase by 1"
-                  >
-                    <i className="bi bi-plus"></i>
-                  </button>
-                </div>
+                <button
+                  className="btn btn-outline-success btn-sm"
+                  onClick={() => handleQuickQuantity(1)}
+                  title="Increase by 1"
+                >
+                  <i className="bi bi-plus"></i>
+                </button>
               </div>
-              <div className="text-center mt-1">
+
+              {/* Bulk Quantity Controls - Below main buttons */}
+              <div className="d-flex justify-content-center align-items-center gap-2">
+                <button
+                  className="btn btn-outline-warning btn-xs"
+                  onClick={() => handleQuickQuantity(-5)}
+                  disabled={product.quantity < 5}
+                  title="Decrease by 5"
+                >
+                  -5
+                </button>
+                
                 <button
                   className="btn btn-outline-secondary btn-xs"
                   onClick={handleCustomQuantity}
                   title="Set custom quantity"
                 >
-                  <i className="bi bi-pencil-square me-1"></i>
-                  Set Custom
+                  <i className="bi bi-pencil-square"></i>
+                </button>
+                
+                <button
+                  className="btn btn-outline-info btn-xs"
+                  onClick={() => handleQuickQuantity(5)}
+                  title="Increase by 5"
+                >
+                  +5
                 </button>
               </div>
             </div>
@@ -238,78 +237,77 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
             {/* Quick Price Controls */}
             <div className="mb-3">
               <small className="text-muted fw-semibold d-block mb-2">Price</small>
-              <div className="d-flex align-items-center justify-content-between">
-                <div className="btn-group btn-group-sm">
-                  <button
-                    className="btn btn-outline-secondary"
-                    onClick={() => handleQuickPrice(-1)}
-                    disabled={product.price <= 1}
-                    title="Decrease by $1"
-                  >
-                    <i className="bi bi-dash"></i>
-                  </button>
-                  <button
-                    className="btn btn-outline-warning"
-                    onClick={() => handleQuickPrice(-5)}
-                    disabled={product.price <= 5}
-                    title="Decrease by $5"
-                  >
-                    -5
-                  </button>
-                </div>
+              
+              {/* Main Price Controls */}
+              <div className="d-flex align-items-center justify-content-center mb-1">
+                <button
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={() => handleQuickPrice(-1)}
+                  disabled={product.price <= 1}
+                  title="Decrease by $1"
+                >
+                  <i className="bi bi-dash"></i>
+                </button>
                 
-                <strong className="text-primary fs-5 mx-2 min-width-60 text-center">
+                <strong className="text-primary fs-5 mx-3 text-center min-width-60">
                   ${product.price}
                 </strong>
                 
-                <div className="btn-group btn-group-sm">
-                  <button
-                    className="btn btn-outline-info"
-                    onClick={() => handleQuickPrice(5)}
-                    title="Increase by $5"
-                  >
-                    +5
-                  </button>
-                  <button
-                    className="btn btn-outline-secondary"
-                    onClick={() => handleQuickPrice(1)}
-                    title="Increase by $1"
-                  >
-                    <i className="bi bi-plus"></i>
-                  </button>
-                </div>
+                <button
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={() => handleQuickPrice(1)}
+                  title="Increase by $1"
+                >
+                  <i className="bi bi-plus"></i>
+                </button>
               </div>
-              <div className="text-center mt-1">
+
+              {/* Bulk Price Controls - Below main buttons */}
+              <div className="d-flex justify-content-center align-items-center gap-2">
+                <button
+                  className="btn btn-outline-warning btn-xs"
+                  onClick={() => handleQuickPrice(-5)}
+                  disabled={product.price <= 5}
+                  title="Decrease by $5"
+                >
+                  -5
+                </button>
+                
                 <button
                   className="btn btn-outline-secondary btn-xs"
                   onClick={handleCustomPrice}
                   title="Set custom price"
                 >
-                  <i className="bi bi-pencil-square me-1"></i>
-                  Set Custom
+                  <i className="bi bi-pencil-square"></i>
+                </button>
+                
+                <button
+                  className="btn btn-outline-info btn-xs"
+                  onClick={() => handleQuickPrice(5)}
+                  title="Increase by $5"
+                >
+                  +5
                 </button>
               </div>
             </div>
 
             {/* Quick Actions */}
             <div className="mb-3">
-              <small className="text-muted fw-semibold d-block mb-2">Quick Actions</small>
-              <div className="d-grid gap-1">
+              <small className="text-muted fw-semibold d-block mb-1">Quick Actions</small>
+              <div className="d-flex justify-content-center gap-1">
                 <button
-                  className="btn btn-outline-primary btn-sm"
+                  className="btn btn-outline-primary btn-xs"
                   onClick={() => handleQuickQuantity(10)}
                   title="Add 10 to quantity"
                 >
-                  <i className="bi bi-arrow-up-short me-1"></i>
-                  Quick +10
+                  +10
                 </button>
                 <button
-                  className="btn btn-outline-success btn-sm"
+                  className="btn btn-outline-success btn-xs"
                   onClick={() => handleQuickQuantity(25)}
                   title="Add 25 to quantity"
                 >
-                  <i className="bi bi-arrow-up me-1"></i>
-                  Bulk +25
+                  +25
                 </button>
               </div>
             </div>
@@ -334,7 +332,7 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
             <button 
               className="btn btn-warning btn-sm"
               onClick={() => {
-                console.log(`🛠️ Starting full edit for product ${product.id} (${product.name})`);
+                console.log(`🛠️ ProductCard ${product.id} - Starting full edit`);
                 setEditedProduct({ ...product });
                 setIsEditing(true);
               }}
@@ -346,7 +344,7 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
             <button 
               className="btn btn-danger btn-sm"
               onClick={() => {
-                console.log(`🗑️ Delete initiated for product ${product.id} (${product.name})`);
+                console.log(`🗑️ ProductCard ${product.id} - Delete initiated`);
                 if (window.confirm(`Are you sure you want to delete "${product.name}"?`)) {
                   onDelete(product.id);
                 }
