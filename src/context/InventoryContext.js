@@ -15,11 +15,32 @@ export const InventoryProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Generate unique ID
-  const generateId = () => {
-    return Date.now() + Math.floor(Math.random() * 1000);
-  };
-
+  // Generate short 3-digit unique ID (100-999)
+  // Most robust short ID generator
+const generateShortId = () => {
+  const usedIds = new Set(products.map(p => p.id));
+  
+  // Try sequential first (101, 102, 103...)
+  if (products.length === 0) return 101;
+  
+  const maxId = Math.max(...products.map(p => p.id));
+  const nextSequential = maxId + 1;
+  
+  // If sequential is within 3-digit range, use it
+  if (nextSequential <= 999) {
+    return nextSequential;
+  }
+  
+  // Otherwise find the smallest available ID
+  for (let id = 101; id <= 999; id++) {
+    if (!usedIds.has(id)) {
+      return id;
+    }
+  }
+  
+  // Fallback (should rarely happen)
+  return Date.now() % 1000;
+};
   // Load products from localStorage on component mount
   useEffect(() => {
     const loadProducts = () => {
@@ -32,7 +53,7 @@ export const InventoryProvider = ({ children }) => {
           // Initialize with some sample data
           const initialProducts = [
             {
-              id: generateId(),
+              id: 101,
               name: 'Laptop',
               description: 'High-performance laptop',
               quantity: 15,
@@ -41,7 +62,7 @@ export const InventoryProvider = ({ children }) => {
               createdAt: new Date().toISOString()
             },
             {
-              id: generateId(),
+              id: 102,
               name: 'Desk Chair',
               description: 'Ergonomic office chair',
               quantity: 8,
@@ -50,7 +71,7 @@ export const InventoryProvider = ({ children }) => {
               createdAt: new Date().toISOString()
             },
             {
-              id: generateId(),
+              id: 103,
               name: 'Notebook',
               description: 'A4 size notebook',
               quantity: 0,
@@ -79,7 +100,7 @@ export const InventoryProvider = ({ children }) => {
     if (!loading && products.length > 0) {
       try {
         localStorage.setItem('inventoryProducts', JSON.stringify(products));
-        console.log('Products saved to localStorage:', products);
+        console.log('Products saved to localStorage:', products.map(p => ({ id: p.id, name: p.name })));
       } catch (error) {
         console.error('Error saving products:', error);
       }
@@ -89,14 +110,14 @@ export const InventoryProvider = ({ children }) => {
   const addProduct = (productData) => {
     console.log('Adding new product:', productData);
     const newProduct = {
-      id: generateId(), // Use the new ID generator
+      id: generateShortId(), // Use the new short ID generator
       ...productData,
       createdAt: new Date().toISOString()
     };
     console.log('New product with ID:', newProduct.id);
     setProducts(prev => {
       const updatedProducts = [...prev, newProduct];
-      console.log('Updated products array:', updatedProducts);
+      console.log('Updated products array IDs:', updatedProducts.map(p => p.id));
       return updatedProducts;
     });
     return newProduct;
