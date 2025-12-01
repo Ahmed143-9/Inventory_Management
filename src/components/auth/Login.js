@@ -162,7 +162,7 @@ const Login = () => {
                   </form>
 
                   {/* Demo Credentials */}
-                  <div className="demo-credentials-box mt-4 p-3 bg-light rounded">
+                  {/* <div className="demo-credentials-box mt-4 p-3 bg-light rounded">
                     <div className="d-flex align-items-center mb-2">
                       <i className="bi bi-info-circle text-primary me-2"></i>
                       <strong className="small">Demo Credentials</strong>
@@ -176,14 +176,14 @@ const Login = () => {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
               </div>
 
               {/* Footer */}
               <div className="text-center mt-4">
                 <small className="text-muted">
-                  © 2024 Inventory Management System. All rights reserved.
+                  © 2025 Inventory Management System. All rights reserved.
                 </small>
               </div>
             </div>
