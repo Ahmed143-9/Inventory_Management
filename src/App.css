@@ -479,3 +479,7 @@ nav span.active {
     font-size: 0.9rem;
   }
 }
+
+.checking {
+  color: black !important;
+}
