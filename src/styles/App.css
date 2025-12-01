@@ -1196,3 +1196,28 @@ body {
 .mb-4 {
   margin-bottom: 1.5rem !important;
 }
+
+/* src/styles/custom.css */
+.min-width-50 { 
+  min-width: 50px; 
+  display: inline-block;
+}
+
+.min-width-60 { 
+  min-width: 60px; 
+  display: inline-block;
+}
+
+.product-card {
+  transition: all 0.3s ease;
+}
+
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+}
+
+.btn-xs {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
