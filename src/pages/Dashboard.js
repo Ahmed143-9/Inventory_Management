@@ -1,4 +1,4 @@
-// src/pages/Dashboard.js
+// src/pages/Dashboard.js - Redesigned
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -32,34 +32,54 @@ const Dashboard = () => {
     categories: [...new Set(products.map(p => p.category))].length
   };
 
-  // Recent products (last 5 added/modified)
-  const recentProducts = [...products]
-    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+  // Low stock products (top 5)
+  const lowStockProducts = products
+    .filter(p => p.quantity < 10 && p.quantity > 0)
+    .sort((a, b) => a.quantity - b.quantity)
     .slice(0, 5);
 
-  // Low stock alert products
-  const lowStockProducts = products.filter(p => p.quantity < 10 && p.quantity > 0).slice(0, 3);
+  // Out of stock products (top 5)
+  const outOfStockProducts = products
+    .filter(p => p.quantity === 0)
+    .slice(0, 5);
 
   return (
     <ProtectedRoute>
-      <div className="dashboard">
+      <div className="dashboard container-fluid px-3 px-md-4 px-lg-5">
         {/* Welcome Header */}
         <div className="row mb-4">
           <div className="col-md-12">
-            <div className="card bg-gradient-primary text-white shadow">
-              <div className="card-body">
+            <div className="card bg-gradient-primary text-white shadow-lg border-0">
+              <div className="card-body p-4">
                 <div className="row align-items-center">
                   <div className="col-md-8">
-                    <h2 className="card-title mb-2">
-                      Welcome back, {currentUser?.name}! 👋
-                    </h2>
-                    <p className="card-text opacity-75 mb-0">
-                      Here's what's happening with your inventory today.
-                    </p>
+                    <div className="d-flex align-items-center mb-3">
+                      <div className="welcome-icon bg-white bg-opacity-20 rounded-circle p-3 me-3">
+                        <i className="bi bi-person-circle fs-2"></i>
+                      </div>
+                      <div>
+                        <h2 className="card-title mb-1">
+                          Welcome back, {currentUser?.name}! 👋
+                        </h2>
+                        <p className="card-text opacity-75 mb-0">
+                          Here's your inventory overview for today
+                        </p>
+                      </div>
+                    </div>
+                    <div className="d-flex gap-3 mt-3">
+                      <div className="stat-mini bg-white bg-opacity-20 rounded px-3 py-2">
+                        <small className="d-block opacity-75">Last Login</small>
+                        <strong>{new Date().toLocaleDateString()}</strong>
+                      </div>
+                      <div className="stat-mini bg-white bg-opacity-20 rounded px-3 py-2">
+                        <small className="d-block opacity-75">Active Status</small>
+                        <strong><i className="bi bi-circle-fill text-success me-1"></i>Online</strong>
+                      </div>
+                    </div>
                   </div>
-                  <div className="col-md-4 text-end">
-                    <div className="bg-white bg-opacity-20 rounded p-3 d-inline-block">
-                      <i className="bi bi-graph-up-arrow display-6"></i>
+                  <div className="col-md-4 text-end d-none d-md-block">
+                    <div className="dashboard-illustration">
+                      <i className="bi bi-bar-chart-fill display-1 opacity-50"></i>
                     </div>
                   </div>
                 </div>
@@ -76,7 +96,7 @@ const Dashboard = () => {
                 <div className="d-flex justify-content-between align-items-start">
                   <div>
                     <h6 className="card-title text-muted mb-2">Total Products</h6>
-                    <h3 className="text-primary mb-0">{stats.totalProducts}</h3>
+                    <h3 className="text-primary mb-0">{stats.totalProducts.toLocaleString()}</h3>
                     <small className="text-muted">Across {stats.categories} categories</small>
                   </div>
                   <div className="bg-primary bg-opacity-10 rounded p-2">
@@ -139,10 +159,97 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="row">
-          {/* Quick Actions */}
-          <div className="col-md-6 mb-4">
+        {/* Stock Alerts - Two Panels Side by Side */}
+        <div className="row mb-4">
+          {/* Low Stock Alerts */}
+          <div className="col-md-6 mb-3">
             <div className="card border-0 shadow-sm h-100">
+              <div className="card-header bg-transparent border-0 pb-0">
+                <h5 className="card-title mb-0 text-warning">
+                  <i className="bi bi-exclamation-triangle me-2"></i>
+                  Low Stock Alerts
+                </h5>
+              </div>
+              <div className="card-body">
+                {lowStockProducts.length > 0 ? (
+                  <>
+                    {lowStockProducts.map(product => (
+                      <div key={product.id} className="alert alert-warning mb-2 py-2">
+                        <div className="d-flex justify-content-between align-items-center">
+                          <div>
+                            <strong>{product.name}</strong>
+                            <br />
+                            <small>Only {product.quantity} left in stock</small>
+                          </div>
+                          <span className="badge bg-warning">Restock</span>
+                        </div>
+                      </div>
+                    ))}
+                    {stats.lowStock > 5 && (
+                      <div className="text-center mt-3">
+                        <Link to="/products" className="btn btn-sm btn-outline-warning">
+                          View All {stats.lowStock} Low Stock Items
+                        </Link>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center text-muted py-4">
+                    <i className="bi bi-check-circle display-4 text-success mb-3"></i>
+                    <p className="mb-0">All products are well stocked! 🎉</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Out of Stock Alerts */}
+          <div className="col-md-6 mb-3">
+            <div className="card border-0 shadow-sm h-100">
+              <div className="card-header bg-transparent border-0 pb-0">
+                <h5 className="card-title mb-0 text-danger">
+                  <i className="bi bi-x-circle me-2"></i>
+                  Out of Stock
+                </h5>
+              </div>
+              <div className="card-body">
+                {outOfStockProducts.length > 0 ? (
+                  <>
+                    {outOfStockProducts.map(product => (
+                      <div key={product.id} className="alert alert-danger mb-2 py-2">
+                        <div className="d-flex justify-content-between align-items-center">
+                          <div>
+                            <strong>{product.name}</strong>
+                            <br />
+                            <small className="text-muted">{product.category}</small>
+                          </div>
+                          <span className="badge bg-danger">0 Stock</span>
+                        </div>
+                      </div>
+                    ))}
+                    {stats.outOfStock > 5 && (
+                      <div className="text-center mt-3">
+                        <Link to="/products" className="btn btn-sm btn-outline-danger">
+                          View All {stats.outOfStock} Out of Stock Items
+                        </Link>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center text-muted py-4">
+                    <i className="bi bi-check-circle display-4 text-success mb-3"></i>
+                    <p className="mb-0">No products are out of stock! ✨</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions - Full Width at Bottom */}
+        <div className="row">
+          <div className="col-md-12">
+            <div className="card border-0 shadow-sm">
               <div className="card-header bg-transparent border-0 pb-0">
                 <h5 className="card-title mb-0">
                   <i className="bi bi-lightning text-warning me-2"></i>
@@ -151,8 +258,8 @@ const Dashboard = () => {
               </div>
               <div className="card-body">
                 <div className="row g-3">
-                  <div className="col-md-6">
-                    <Link to="/products" className="card action-card text-decoration-none">
+                  <div className="col-6 col-md-3">
+                    <Link to="/products" className="card action-card text-decoration-none h-100">
                       <div className="card-body text-center p-3">
                         <i className="bi bi-plus-circle display-6 text-success mb-2"></i>
                         <h6 className="card-title mb-1">Add Product</h6>
@@ -160,8 +267,8 @@ const Dashboard = () => {
                       </div>
                     </Link>
                   </div>
-                  <div className="col-md-6">
-                    <Link to="/products" className="card action-card text-decoration-none">
+                  <div className="col-6 col-md-3">
+                    <Link to="/products" className="card action-card text-decoration-none h-100">
                       <div className="card-body text-center p-3">
                         <i className="bi bi-file-earmark-spreadsheet display-6 text-info mb-2"></i>
                         <h6 className="card-title mb-1">Bulk Import</h6>
@@ -169,8 +276,8 @@ const Dashboard = () => {
                       </div>
                     </Link>
                   </div>
-                  <div className="col-md-6">
-                    <Link to="/products" className="card action-card text-decoration-none">
+                  <div className="col-6 col-md-3">
+                    <Link to="/products" className="card action-card text-decoration-none h-100">
                       <div className="card-body text-center p-3">
                         <i className="bi bi-eye display-6 text-primary mb-2"></i>
                         <h6 className="card-title mb-1">View Products</h6>
@@ -179,8 +286,8 @@ const Dashboard = () => {
                     </Link>
                   </div>
                   {currentUser?.role === 'superadmin' && (
-                    <div className="col-md-6">
-                      <Link to="/admin" className="card action-card text-decoration-none">
+                    <div className="col-6 col-md-3">
+                      <Link to="/admin" className="card action-card text-decoration-none h-100">
                         <div className="card-body text-center p-3">
                           <i className="bi bi-people display-6 text-purple mb-2"></i>
                           <h6 className="card-title mb-1">Admin Panel</h6>
@@ -190,122 +297,6 @@ const Dashboard = () => {
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Low Stock Alerts */}
-          {lowStockProducts.length > 0 && (
-            <div className="col-md-6 mb-4">
-              <div className="card border-0 shadow-sm h-100">
-                <div className="card-header bg-transparent border-0 pb-0">
-                  <h5 className="card-title mb-0 text-danger">
-                    <i className="bi bi-exclamation-triangle me-2"></i>
-                    Low Stock Alerts
-                  </h5>
-                </div>
-                <div className="card-body">
-                  {lowStockProducts.map(product => (
-                    <div key={product.id} className="alert alert-warning alert-dismissible fade show mb-2">
-                      <div className="d-flex justify-content-between align-items-center">
-                        <div>
-                          <strong>{product.name}</strong>
-                          <br />
-                          <small>Only {product.quantity} left in stock</small>
-                        </div>
-                        <span className="badge bg-warning">Restock</span>
-                      </div>
-                    </div>
-                  ))}
-                  {lowStockProducts.length === 0 && (
-                    <div className="text-center text-muted py-4">
-                      <i className="bi bi-check-circle display-4 text-success mb-3"></i>
-                      <p className="mb-0">All products are well stocked! 🎉</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Recent Products */}
-        <div className="row">
-          <div className="col-md-12">
-            <div className="card border-0 shadow-sm">
-              <div className="card-header bg-transparent border-0">
-                <div className="d-flex justify-content-between align-items-center">
-                  <h5 className="card-title mb-0">
-                    <i className="bi bi-clock-history text-primary me-2"></i>
-                    Recent Products
-                  </h5>
-                  <Link to="/products" className="btn btn-sm btn-outline-primary">
-                    View All
-                  </Link>
-                </div>
-              </div>
-              <div className="card-body">
-                {recentProducts.length > 0 ? (
-                  <div className="table-responsive">
-                    <table className="table table-hover">
-                      <thead>
-                        <tr>
-                          <th>Product</th>
-                          <th>Category</th>
-                          <th>Quantity</th>
-                          <th>Price</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recentProducts.map(product => (
-                          <tr key={product.id}>
-                            <td>
-                              <div>
-                                <strong>{product.name}</strong>
-                                <br />
-                                <small className="text-muted">{product.description}</small>
-                              </div>
-                            </td>
-                            <td>
-                              <span className="badge bg-secondary">{product.category}</span>
-                            </td>
-                            <td>
-                              <span className={`badge ${
-                                product.quantity === 0 ? 'bg-danger' : 
-                                product.quantity < 10 ? 'bg-warning' : 'bg-success'
-                              }`}>
-                                {product.quantity}
-                              </span>
-                            </td>
-                            <td>
-                              <strong>${product.price}</strong>
-                            </td>
-                            <td>
-                              <span className={`badge ${
-                                product.quantity === 0 ? 'bg-danger' : 
-                                product.quantity < 10 ? 'bg-warning' : 'bg-success'
-                              }`}>
-                                {product.quantity === 0 ? 'Out of Stock' : 
-                                 product.quantity < 10 ? 'Low Stock' : 'In Stock'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-5">
-                    <i className="bi bi-inbox display-1 text-muted mb-3"></i>
-                    <h5 className="text-muted">No products yet</h5>
-                    <p className="text-muted mb-4">Start by adding your first product to the inventory.</p>
-                    <Link to="/products" className="btn btn-primary">
-                      <i className="bi bi-plus-circle me-2"></i>
-                      Add Your First Product
-                    </Link>
-                  </div>
-                )}
               </div>
             </div>
           </div>

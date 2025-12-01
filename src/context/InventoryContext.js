@@ -1,5 +1,5 @@
-// src/context/InventoryContext.js
-import React, { createContext, useState, useContext, useEffect } from 'react';
+// src/context/InventoryContext.js - FIXED
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 
 const InventoryContext = createContext();
 
@@ -14,27 +14,15 @@ export const useInventory = () => {
 export const InventoryProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // 🔥 FIX: Use ref to track the latest ID synchronously
+  const nextIdRef = useRef(101);
 
   // Reliable ID generator - FIXED
-  const generateNewId = (currentProducts) => {
-    console.log('🆔 Generating new ID for products:', currentProducts);
-    
-    if (currentProducts.length === 0) {
-      console.log('✅ First product - ID: 101');
-      return 101;
-    }
-    
-    // Find the maximum ID safely
-    const ids = currentProducts.map(p => p.id).filter(id => !isNaN(id));
-    if (ids.length === 0) {
-      console.log('⚠️ No valid IDs found, starting from 101');
-      return 101;
-    }
-    
-    const maxId = Math.max(...ids);
-    const newId = maxId + 1;
-    
-    console.log(`✅ New ID generated: ${newId} (previous max: ${maxId})`);
+  const generateNewId = () => {
+    const newId = nextIdRef.current;
+    nextIdRef.current += 1; // Increment for next product
+    console.log(`✅ Generated ID: ${newId}, Next ID will be: ${nextIdRef.current}`);
     return newId;
   };
 
@@ -49,8 +37,15 @@ export const InventoryProvider = ({ children }) => {
           const parsedProducts = JSON.parse(savedProducts);
           console.log('✅ Parsed products with IDs:', parsedProducts.map(p => ({ id: p.id, name: p.name })));
           setProducts(parsedProducts);
+          
+          // 🔥 FIX: Set nextIdRef to max ID + 1
+          if (parsedProducts.length > 0) {
+            const maxId = Math.max(...parsedProducts.map(p => p.id));
+            nextIdRef.current = maxId + 1;
+            console.log(`🔢 Set next ID to: ${nextIdRef.current}`);
+          }
         } else {
-          // Initialize with sample data - DIFFERENT IDs
+          // Initialize with sample data
           const initialProducts = [
             { 
               id: 101, 
@@ -82,11 +77,13 @@ export const InventoryProvider = ({ children }) => {
           ];
           console.log('🚀 Initializing with sample products:', initialProducts.map(p => ({ id: p.id, name: p.name })));
           setProducts(initialProducts);
+          nextIdRef.current = 104; // Next ID after initial products
           localStorage.setItem('inventoryProducts', JSON.stringify(initialProducts));
         }
       } catch (error) {
         console.error('❌ Error loading products:', error);
         setProducts([]);
+        nextIdRef.current = 101;
       } finally {
         setLoading(false);
       }
@@ -109,7 +106,7 @@ export const InventoryProvider = ({ children }) => {
   const addProduct = (productData) => {
     console.log('➕ Adding new product:', productData);
     
-    const newId = generateNewId(products);
+    const newId = generateNewId(); // 🔥 This will use ref, so it's always unique
     const newProduct = {
       id: newId,
       ...productData,

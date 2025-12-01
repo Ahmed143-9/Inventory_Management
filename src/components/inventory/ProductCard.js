@@ -1,27 +1,11 @@
 // src/components/inventory/ProductCard.js
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 const ProductCard = ({ product, onUpdate, onDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedProduct, setEditedProduct] = useState(null);
 
   console.log(`🎯 ProductCard ${product.id} rendering - Editing: ${isEditing}`);
-
-  // যখন product props change হয়, শুধুমাত্র তখনই local state update করুন
-  useEffect(() => {
-    console.log(`🔄 ProductCard ${product.id} received new props`);
-    
-    // যদি editing mode-এ থাকি, তাহলে editedProduct কে update করুন
-    if (isEditing && editedProduct) {
-      setEditedProduct({
-        name: product.name,
-        description: product.description,
-        quantity: product.quantity,
-        price: product.price,
-        category: product.category
-      });
-    }
-  }, [product]); // শুধুমাত্র যখন product props change হয়
 
   // Initialize editedProduct ONLY when starting to edit THIS specific product
   const startEditing = () => {

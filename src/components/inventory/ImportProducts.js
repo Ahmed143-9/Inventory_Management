@@ -1,4 +1,4 @@
-// src/components/inventory/ImportProducts.js
+// src/components/inventory/ImportProducts.js - FIXED
 import React, { useState } from 'react';
 
 const ImportProducts = ({ onAdd }) => {
@@ -6,7 +6,7 @@ const ImportProducts = ({ onAdd }) => {
   const [message, setMessage] = useState('');
   const [previewData, setPreviewData] = useState([]);
   const [isImporting, setIsImporting] = useState(false);
-  const [activeStep, setActiveStep] = useState(1); // 1: Upload, 2: Preview, 3: Complete
+  const [activeStep, setActiveStep] = useState(1);
 
   const parseCSV = (text) => {
     const lines = text.split('\n').filter(line => line.trim());
@@ -39,7 +39,7 @@ const ImportProducts = ({ onAdd }) => {
       });
       
       return product;
-    }).filter(product => product.name); // Only include products with names
+    }).filter(product => product.name);
   };
 
   const handleCSVChange = (e) => {
@@ -49,7 +49,7 @@ const ImportProducts = ({ onAdd }) => {
     if (text.trim()) {
       const parsed = parseCSV(text);
       setPreviewData(parsed);
-      setActiveStep(2); // Move to preview step
+      setActiveStep(2);
     } else {
       setPreviewData([]);
       setActiveStep(1);
@@ -65,7 +65,7 @@ const ImportProducts = ({ onAdd }) => {
       setCsvData(event.target.result);
       const parsed = parseCSV(event.target.result);
       setPreviewData(parsed);
-      setActiveStep(2); // Move to preview step
+      setActiveStep(2);
     };
     reader.readAsText(file);
   };
@@ -80,23 +80,26 @@ const ImportProducts = ({ onAdd }) => {
     setIsImporting(true);
     try {
       let importedCount = 0;
-      previewData.forEach(product => {
+      
+      // 🔥 FIX: Import products - now using ref so no delay needed
+      for (const product of previewData) {
         if (product.name) {
+          console.log(`📦 Importing product: ${product.name}`);
           onAdd(product);
           importedCount++;
         }
-      });
+      }
 
       setMessage(`Successfully imported ${importedCount} products!`);
-      setActiveStep(3); // Move to complete step
+      setActiveStep(3);
       
-      // Reset form after delay
       setTimeout(() => {
         setCsvData('');
         setPreviewData([]);
         setActiveStep(1);
       }, 3000);
     } catch (error) {
+      console.error('Import error:', error);
       setMessage('Error importing products. Please try again.');
     } finally {
       setIsImporting(false);
@@ -182,7 +185,6 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
                 <h5 className="card-title mb-4">Choose Import Method</h5>
                 
                 <div className="row g-4">
-                  {/* File Upload Option */}
                   <div className="col-md-6">
                     <div className="card h-100 border">
                       <div className="card-body text-center p-4">
@@ -208,7 +210,6 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
                     </div>
                   </div>
 
-                  {/* Paste Data Option */}
                   <div className="col-md-6">
                     <div className="card h-100 border">
                       <div className="card-body text-center p-4">
@@ -231,7 +232,6 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
                   </div>
                 </div>
 
-                {/* Template Download */}
                 <div className="row mt-4">
                   <div className="col-md-12">
                     <div className="card bg-light border-0">
@@ -281,7 +281,6 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
                   </div>
                 </div>
 
-                {/* Preview Section */}
                 {previewData.length > 0 && (
                   <div className="preview-section">
                     <div className="d-flex justify-content-between align-items-center mb-3">
@@ -335,7 +334,6 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
                       </div>
                     )}
 
-                    {/* Import Action */}
                     <div className="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
                       <button 
                         className="btn btn-outline-secondary"
