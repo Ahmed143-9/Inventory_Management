@@ -179,7 +179,7 @@ const Login = () => {
                   </button>
                 </form>
                 
-                <div className="mt-4 text-center">
+                {/* <div className="mt-4 text-center">
                   <div className="border-top pt-4">
                     <h6 className="text-muted mb-3">Super Admin Credentials</h6>
                     <div className="alert alert-info bg-light border-info">
@@ -199,7 +199,7 @@ const Login = () => {
                       Only Super Admin can add new users to the system.
                     </p>
                   </div>
-                </div>
+                </div> */}
               </div>
             </div>
             

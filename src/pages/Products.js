@@ -116,7 +116,7 @@ const Products = () => {
                   <th>Actions</th>
                 </tr>
               </thead>
-              <thead className="table-light">
+              {/* <thead className="table-light">
                 <tr>
                   <th>Product Code</th>
                   <th>Product</th>
@@ -130,7 +130,7 @@ const Products = () => {
                   <th>Sell Rate</th>
                   <th>Actions</th>
                 </tr>
-              </thead>
+              </thead> */}
 
               <tbody>
                 {filteredProducts.length === 0 ? (

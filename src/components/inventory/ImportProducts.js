@@ -1,7 +1,8 @@
-// src/components/inventory/ImportProducts.js - FIXED
 import React, { useState } from 'react';
+import { useInventory } from '../../context/InventoryContext';
 
-const ImportProducts = ({ onAdd }) => {
+const ImportProducts = () => {
+  const { addProduct } = useInventory();
   const [csvData, setCsvData] = useState('');
   const [message, setMessage] = useState('');
   const [previewData, setPreviewData] = useState([]);
@@ -22,15 +23,38 @@ const ImportProducts = ({ onAdd }) => {
         if (values[index]) {
           switch(header) {
             case 'name':
+            case 'productname':
+              product.productName = values[index];
+              break;
             case 'description':
+              product.description = values[index];
+              break;
             case 'category':
-              product[header] = values[index];
+              product.category = values[index];
+              break;
+            case 'product':
+              product.product = values[index];
+              break;
+            case 'material':
+              product.material = values[index];
+              break;
+            case 'size':
+              product.size = values[index];
+              break;
+            case 'modelno':
+            case 'model':
+              product.modelNo = values[index];
               break;
             case 'quantity':
-              product[header] = parseInt(values[index]) || 0;
+              product.quantity = parseInt(values[index]) || 0;
               break;
             case 'price':
-              product[header] = parseFloat(values[index]) || 0;
+            case 'unitrate':
+              product.unitRate = parseFloat(values[index]) || 0;
+              break;
+            case 'sellrate':
+            case 'sellingprice':
+              product.sellRate = parseFloat(values[index]) || 0;
               break;
             default:
               product[header] = values[index];
@@ -39,7 +63,7 @@ const ImportProducts = ({ onAdd }) => {
       });
       
       return product;
-    }).filter(product => product.name);
+    }).filter(product => product.productName || product.name);
   };
 
   const handleCSVChange = (e) => {
@@ -81,15 +105,18 @@ const ImportProducts = ({ onAdd }) => {
     try {
       let importedCount = 0;
       
-      // 🔥 FIX: Import products - now using ref so no delay needed
-      for (const product of previewData) {
-        if (product.name) {
-          console.log(`📦 Importing product: ${product.name}`);
-          onAdd(product);
+      console.log('🚀 Starting import of', previewData.length, 'products');
+      
+      // Import all products
+      previewData.forEach(product => {
+        if (product.productName || product.name) {
+          console.log(`📦 Importing: ${product.productName || product.name}`);
+          addProduct(product);
           importedCount++;
         }
-      }
+      });
 
+      console.log('✅ Import completed:', importedCount, 'products');
       setMessage(`Successfully imported ${importedCount} products!`);
       setActiveStep(3);
       
@@ -99,7 +126,7 @@ const ImportProducts = ({ onAdd }) => {
         setActiveStep(1);
       }, 3000);
     } catch (error) {
-      console.error('Import error:', error);
+      console.error('❌ Import error:', error);
       setMessage('Error importing products. Please try again.');
     } finally {
       setIsImporting(false);
@@ -151,20 +178,20 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
               <div className="row text-center">
                 <div className="col-md-4">
                   <div className={`step-indicator ${activeStep >= 1 ? 'active' : ''}`}>
-                    <span className="step-number">1</span>
-                    <div className="step-label">Upload Data</div>
+                    <div className={`step-number ${activeStep >= 1 ? 'bg-primary text-white' : 'bg-secondary text-white'} rounded-circle d-inline-flex align-items-center justify-content-center`} style={{width: '40px', height: '40px'}}>1</div>
+                    <div className="step-label mt-2">Upload Data</div>
                   </div>
                 </div>
                 <div className="col-md-4">
                   <div className={`step-indicator ${activeStep >= 2 ? 'active' : ''}`}>
-                    <span className="step-number">2</span>
-                    <div className="step-label">Preview & Validate</div>
+                    <div className={`step-number ${activeStep >= 2 ? 'bg-primary text-white' : 'bg-secondary text-white'} rounded-circle d-inline-flex align-items-center justify-content-center`} style={{width: '40px', height: '40px'}}>2</div>
+                    <div className="step-label mt-2">Preview & Validate</div>
                   </div>
                 </div>
                 <div className="col-md-4">
                   <div className={`step-indicator ${activeStep >= 3 ? 'active' : ''}`}>
-                    <span className="step-number">3</span>
-                    <div className="step-label">Complete</div>
+                    <div className={`step-number ${activeStep >= 3 ? 'bg-success text-white' : 'bg-secondary text-white'} rounded-circle d-inline-flex align-items-center justify-content-center`} style={{width: '40px', height: '40px'}}>3</div>
+                    <div className="step-label mt-2">Complete</div>
                   </div>
                 </div>
               </div>
@@ -201,10 +228,6 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
                             className="form-control"
                             id="fileUpload"
                           />
-                          <label htmlFor="fileUpload" className="btn btn-primary w-100 mt-2">
-                            <i className="bi bi-upload me-2"></i>
-                            Choose File
-                          </label>
                         </div>
                       </div>
                     </div>
@@ -221,7 +244,7 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
                         <div className="mt-3">
                           <button 
                             className="btn btn-outline-success w-100"
-                            onClick={() => document.getElementById('csvTextarea').focus()}
+                            onClick={() => document.getElementById('csvTextarea')?.focus()}
                           >
                             <i className="bi bi-clipboard me-2"></i>
                             Start Pasting Data
@@ -254,114 +277,108 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
                     </div>
                   </div>
                 </div>
+
+                <div className="row mt-3">
+                  <div className="col-md-12">
+                    <label className="form-label fw-semibold">Or Paste CSV Data Here:</label>
+                    <textarea
+                      id="csvTextarea"
+                      placeholder="Paste your CSV data here...
+
+Example format:
+name,description,quantity,price,category
+Laptop,High-performance laptop,15,999.99,Electronics
+Mouse,Wireless mouse,50,25.99,Electronics"
+                      value={csvData}
+                      onChange={handleCSVChange}
+                      rows="8"
+                      className="form-control font-monospace"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Step 2: Data Input & Preview */}
-          {activeStep === 2 && (
+          {/* Step 2: Preview */}
+          {activeStep === 2 && previewData.length > 0 && (
             <div className="card shadow-sm border-0">
               <div className="card-body p-4">
-                <h5 className="card-title mb-4">Paste Your CSV Data</h5>
-                
-                <div className="row mb-4">
-                  <div className="col-md-12">
-                    <label className="form-label fw-semibold">CSV Data</label>
-                    <textarea
-                      id="csvTextarea"
-                      placeholder={`Paste your CSV data here...\n\nExample format:\nname,description,quantity,price,category\nLaptop,High-performance laptop,15,999.99,Electronics\nMouse,Wireless mouse,50,25.99,Electronics`}
-                      value={csvData}
-                      onChange={handleCSVChange}
-                      rows="10"
-                      className="form-control font-monospace"
-                    />
-                    <div className="form-text">
-                      Ensure your CSV follows the template format with headers: name, description, quantity, price, category
-                    </div>
-                  </div>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h6 className="mb-0">
+                    Preview ({previewData.length} products ready for import)
+                  </h6>
+                  <span className="badge bg-success">
+                    <i className="bi bi-check-circle me-1"></i>
+                    Valid Format
+                  </span>
                 </div>
 
-                {previewData.length > 0 && (
-                  <div className="preview-section">
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                      <h6 className="mb-0">
-                        Preview ({previewData.length} products ready for import)
-                      </h6>
-                      <span className="badge bg-success">
-                        <i className="bi bi-check-circle me-1"></i>
-                        Valid Format
-                      </span>
-                    </div>
+                <div className="table-responsive">
+                  <table className="table table-sm table-striped">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Category</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewData.slice(0, 5).map((product, index) => (
+                        <tr key={index}>
+                          <td>
+                            <strong>{product.productName || product.name}</strong>
+                          </td>
+                          <td className="text-muted">{product.description || '-'}</td>
+                          <td>
+                            <span className={`badge ${product.quantity === 0 ? 'bg-danger' : product.quantity < 10 ? 'bg-warning' : 'bg-success'}`}>
+                              {product.quantity || 0}
+                            </span>
+                          </td>
+                          <td>${product.unitRate || product.price || 0}</td>
+                          <td>
+                            <span className="badge bg-secondary">{product.category || 'N/A'}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-                    <div className="table-responsive">
-                      <table className="table table-sm table-striped">
-                        <thead className="table-light">
-                          <tr>
-                            <th>Name</th>
-                            <th>Description</th>
-                            <th>Quantity</th>
-                            <th>Price</th>
-                            <th>Category</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {previewData.slice(0, 5).map((product, index) => (
-                            <tr key={index}>
-                              <td>
-                                <strong>{product.name}</strong>
-                              </td>
-                              <td className="text-muted">{product.description}</td>
-                              <td>
-                                <span className={`badge ${product.quantity === 0 ? 'bg-danger' : product.quantity < 10 ? 'bg-warning' : 'bg-success'}`}>
-                                  {product.quantity}
-                                </span>
-                              </td>
-                              <td>${product.price}</td>
-                              <td>
-                                <span className="badge bg-secondary">{product.category}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {previewData.length > 5 && (
-                      <div className="text-center text-muted py-2">
-                        <i className="bi bi-arrow-down"></i>
-                        ... and {previewData.length - 5} more products
-                        <i className="bi bi-arrow-down"></i>
-                      </div>
-                    )}
-
-                    <div className="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-                      <button 
-                        className="btn btn-outline-secondary"
-                        onClick={resetImport}
-                      >
-                        <i className="bi bi-arrow-left me-2"></i>
-                        Back to Upload
-                      </button>
-                      <button 
-                        className="btn btn-success px-4"
-                        onClick={handleImport}
-                        disabled={isImporting}
-                      >
-                        {isImporting ? (
-                          <>
-                            <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                            Importing...
-                          </>
-                        ) : (
-                          <>
-                            <i className="bi bi-cloud-arrow-up me-2"></i>
-                            Import {previewData.length} Products
-                          </>
-                        )}
-                      </button>
-                    </div>
+                {previewData.length > 5 && (
+                  <div className="text-center text-muted py-2">
+                    ... and {previewData.length - 5} more products
                   </div>
                 )}
+
+                <div className="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                  <button 
+                    className="btn btn-outline-secondary"
+                    onClick={resetImport}
+                  >
+                    <i className="bi bi-arrow-left me-2"></i>
+                    Back to Upload
+                  </button>
+                  <button 
+                    className="btn btn-success px-4"
+                    onClick={handleImport}
+                    disabled={isImporting}
+                  >
+                    {isImporting ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                        Importing...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-cloud-arrow-up me-2"></i>
+                        Import {previewData.length} Products
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}
