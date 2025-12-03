@@ -19,6 +19,7 @@ const AdminPanel = () => {
     role: 'user'
   });
   const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
@@ -78,39 +79,59 @@ const AdminPanel = () => {
   };
 
   const handlePasswordChange = (user) => {
-    setSelectedUser(user);
-    setPasswordData({ newPassword: '', confirmPassword: '' });
-    setShowPasswordModal(true);
-  };
+  setSelectedUser(user);
+  // Reset all fields when opening modal
+  setPasswordData({ 
+    currentPassword: user.password || '', // যদি user object-এ password থাকে
+    newPassword: '',
+    confirmPassword: ''
+  });
+  setShowPasswordModal(true);
+};
 
   const handleUpdatePassword = (e) => {
-    e.preventDefault();
-    
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setMessage('Passwords do not match');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
+  e.preventDefault();
+  
+  // প্রথমে current password verify করুন
+  if (!passwordData.currentPassword) {
+    setMessage('Please enter current password for verification');
+    setTimeout(() => setMessage(''), 3000);
+    return;
+  }
 
-    if (passwordData.newPassword.length < 6) {
-      setMessage('Password must be at least 6 characters long');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
+  if (passwordData.newPassword !== passwordData.confirmPassword) {
+    setMessage('New passwords do not match');
+    setTimeout(() => setMessage(''), 3000);
+    return;
+  }
 
-    const result = updateUserPassword(selectedUser.id, passwordData.newPassword);
-    
-    if (result.success) {
-      setMessage('Password updated successfully!');
-      setShowPasswordModal(false);
-      setSelectedUser(null);
-      setPasswordData({ newPassword: '', confirmPassword: '' });
-      setTimeout(() => setMessage(''), 3000);
-    } else {
-      setMessage(result.message);
-      setTimeout(() => setMessage(''), 3000);
-    }
-  };
+  if (passwordData.newPassword.length < 6) {
+    setMessage('Password must be at least 6 characters long');
+    setTimeout(() => setMessage(''), 3000);
+    return;
+  }
+
+  // Here you would typically verify current password with your backend
+  // For now, we'll just show a success message
+  
+  const result = updateUserPassword(selectedUser.id, passwordData.newPassword);
+  
+  if (result.success) {
+    setMessage('Password updated successfully!');
+    setShowPasswordModal(false);
+    setSelectedUser(null);
+    // Reset all password fields
+    setPasswordData({ 
+      currentPassword: '', 
+      newPassword: '', 
+      confirmPassword: '' 
+    });
+    setTimeout(() => setMessage(''), 3000);
+  } else {
+    setMessage(result.message);
+    setTimeout(() => setMessage(''), 3000);
+  }
+};
 
   const getRoleBadgeClass = (role) => {
     switch(role) {
@@ -785,87 +806,122 @@ const AdminPanel = () => {
         )}
 
         {/* Change Password Modal */}
-        {showPasswordModal && selectedUser && (
-          <div className="modal fade show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">
-                    <i className="bi bi-key me-2"></i>
-                    Change Password for {selectedUser.name}
-                  </h5>
-                  <button 
-                    type="button" 
-                    className="btn-close" 
-                    onClick={() => setShowPasswordModal(false)}
-                  ></button>
-                </div>
-                <form onSubmit={handleUpdatePassword}>
-                  <div className="modal-body">
-                    <div className="alert alert-info">
-                      <i className="bi bi-info-circle me-2"></i>
-                      Set a new password for this user. They will need to use this password to login.
-                    </div>
-                    
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">New Password *</label>
-                      <div className="input-group">
-                        <span className="input-group-text bg-light">
-                          <i className="bi bi-lock"></i>
-                        </span>
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          className="form-control"
-                          placeholder="Enter new password"
-                          value={passwordData.newPassword}
-                          onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                          required
-                        />
-                        <button 
-                          type="button"
-                          className="btn btn-outline-secondary"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-                        </button>
-                      </div>
-                    </div>
+      
+{/* Change Password Modal */}
+{showPasswordModal && selectedUser && (
+  <div className="modal fade show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+    <div className="modal-dialog modal-dialog-centered">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h5 className="modal-title">
+            <i className="bi bi-key me-2"></i>
+            Change Password for {selectedUser.name}
+          </h5>
+          <button 
+            type="button" 
+            className="btn-close" 
+            onClick={() => setShowPasswordModal(false)}
+          ></button>
+        </div>
+        <form onSubmit={handleUpdatePassword}>
+          <div className="modal-body">
+            {/* <div className="alert alert-warning">
+              <i className="bi bi-exclamation-triangle me-2"></i>
+              User will need to use the new password for future logins
+            </div> */}
+            
+            {/* Current Password Field - SHOW CURRENT PASSWORD */}
+            <div className="mb-3">
+              <label className="form-label fw-semibold">Current Password *</label>
+              <div className="input-group">
+                <span className="input-group-text bg-light">
+                  <i className="bi bi-key-fill"></i>
+                </span>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  className="form-control"
+                  placeholder="Current password (for verification)"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                  required
+                />
+                <button 
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                </button>
+              </div>
+              <small className="text-muted">Enter the current password of {selectedUser.name}</small>
+            </div>
 
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Confirm Password *</label>
-                      <div className="input-group">
-                        <span className="input-group-text bg-light">
-                          <i className="bi bi-lock-fill"></i>
-                        </span>
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          className="form-control"
-                          placeholder="Confirm new password"
-                          value={passwordData.confirmPassword}
-                          onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary"
-                      onClick={() => setShowPasswordModal(false)}
-                    >
-                      Cancel
-                    </button>
-                    <button type="submit" className="btn btn-primary">
-                      <i className="bi bi-check-circle me-2"></i>
-                      Update Password
-                    </button>
-                  </div>
-                </form>
+            <div className="mb-3">
+              <label className="form-label fw-semibold">New Password *</label>
+              <div className="input-group">
+                <span className="input-group-text bg-light">
+                  <i className="bi bi-lock"></i>
+                </span>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  className="form-control"
+                  placeholder="Enter new password"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                  required
+                />
+                <button 
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                </button>
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label fw-semibold">Confirm Password *</label>
+              <div className="input-group">
+                <span className="input-group-text bg-light">
+                  <i className="bi bi-lock-fill"></i>
+                </span>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  className="form-control"
+                  placeholder="Confirm new password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                  required
+                />
+                <button 
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                </button>
               </div>
             </div>
           </div>
-        )}
+          <div className="modal-footer">
+            <button 
+              type="button" 
+              className="btn btn-secondary"
+              onClick={() => setShowPasswordModal(false)}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary">
+              <i className="bi bi-check-circle me-2"></i>
+              Update Password
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </ProtectedRoute>
   );

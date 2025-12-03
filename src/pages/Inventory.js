@@ -2,7 +2,7 @@
 import React from 'react';
 import { useInventory } from '../context/InventoryContext';
 import ProductList from '../components/inventory/ProductList';
-import AddProduct from '../components/inventory/AddProduct';
+import AddProduct from './AddProduct';
 import ProtectedRoute from '../components/common/ProtectedRoute';
 
 const Inventory = () => {

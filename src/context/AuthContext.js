@@ -1,128 +1,226 @@
-// src/context/AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext();
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+// Hardcoded Super Admin (Only this user exists initially)
+const SUPER_ADMIN = {
+  id: 1,
+  name: "Super Admin",
+  email: "admin@inventory.com",
+  password: "admin123",
+  role: "superadmin",
+  createdAt: new Date().toISOString(),
+  lastLogin: new Date().toISOString()
 };
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState([SUPER_ADMIN]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Initialize users and load current user from localStorage
+  // Load user from localStorage on initial load
   useEffect(() => {
-    const initializeAuth = () => {
+    const savedUser = localStorage.getItem('inventory_user');
+    if (savedUser) {
       try {
-        // Load users from localStorage or initialize with default
-        const savedUsers = localStorage.getItem('inventoryUsers');
-        const savedCurrentUser = localStorage.getItem('currentUser');
-        
-        if (savedUsers) {
-          setUsers(JSON.parse(savedUsers));
-        } else {
-          // Initialize with default super admin
-          const initialUsers = [
-            {
-              id: 1,
-              email: 'superadmin@inventory.com',
-              password: 'admin123',
-              role: 'superadmin',
-              name: 'Super Admin',
-              createdAt: new Date().toISOString()
-            }
-          ];
-          setUsers(initialUsers);
-          localStorage.setItem('inventoryUsers', JSON.stringify(initialUsers));
-        }
-        
-        // Load current user from localStorage
-        if (savedCurrentUser) {
-          const user = JSON.parse(savedCurrentUser);
-          setCurrentUser(user);
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-        // Initialize with default user if there's an error
-        const initialUsers = [
-          {
-            id: 1,
-            email: 'superadmin@inventory.com',
-            password: 'admin123',
-            role: 'superadmin',
-            name: 'Super Admin',
-            createdAt: new Date().toISOString()
-          }
-        ];
-        setUsers(initialUsers);
-        localStorage.setItem('inventoryUsers', JSON.stringify(initialUsers));
-      } finally {
-        setLoading(false);
+        setCurrentUser(JSON.parse(savedUser));
+      } catch (err) {
+        console.error('Error parsing saved user:', err);
+        localStorage.removeItem('inventory_user');
       }
-    };
-
-    initializeAuth();
+    }
+    setLoading(false);
   }, []);
 
-  // Save users to localStorage whenever they change
+  // Save user to localStorage when it changes
   useEffect(() => {
-    if (users.length > 0) {
-      localStorage.setItem('inventoryUsers', JSON.stringify(users));
+    if (currentUser) {
+      localStorage.setItem('inventory_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('inventory_user');
     }
-  }, [users]);
+  }, [currentUser]);
 
-  const login = (email, password) => {
+  const login = async (email, password) => {
+    setError('');
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     const user = users.find(u => u.email === email && u.password === password);
+    
     if (user) {
-      setCurrentUser(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      return { success: true, user };
+      const updatedUser = {
+        ...user,
+        lastLogin: new Date().toISOString()
+      };
+      
+      // Update user in users array
+      setUsers(users.map(u => u.id === user.id ? updatedUser : u));
+      setCurrentUser(updatedUser);
+      
+      return {
+        success: true,
+        message: 'Login successful!',
+        user: updatedUser
+      };
+    } else {
+      setError('Invalid email or password');
+      return {
+        success: false,
+        message: 'Invalid email or password'
+      };
     }
-    return { success: false, message: 'Invalid credentials' };
   };
 
   const logout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('currentUser');
+    setError('');
   };
 
   const addUser = (userData) => {
-    // Check if email already exists
-    if (users.find(u => u.email === userData.email)) {
-      return { success: false, message: 'Email already exists' };
+    // Only Super Admin can add users
+    if (currentUser?.role !== 'superadmin') {
+      return {
+        success: false,
+        message: 'Unauthorized! Only Super Admin can add users.'
+      };
     }
-    
+
+    // Check if email already exists
+    if (users.some(u => u.email === userData.email)) {
+      return {
+        success: false,
+        message: 'User with this email already exists!'
+      };
+    }
+
     const newUser = {
-      id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
+      id: Date.now(),
       ...userData,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      lastLogin: null
     };
-    setUsers(prev => [...prev, newUser]);
-    return { success: true, user: newUser };
+    
+    setUsers([...users, newUser]);
+    
+    return {
+      success: true,
+      message: 'User added successfully!',
+      user: newUser
+    };
   };
 
   const deleteUser = (userId) => {
-    if (userId === currentUser?.id) {
-      return { success: false, message: 'Cannot delete your own account' };
+    // Cannot delete super admin (ID: 1)
+    if (userId === 1) {
+      return {
+        success: false,
+        message: 'Cannot delete Super Admin!'
+      };
     }
-    setUsers(prev => prev.filter(user => user.id !== userId));
-    return { success: true };
+    
+    // Cannot delete current user
+    if (userId === currentUser?.id) {
+      return {
+        success: false,
+        message: 'Cannot delete yourself!'
+      };
+    }
+    
+    setUsers(users.filter(user => user.id !== userId));
+    
+    return {
+      success: true,
+      message: 'User deleted successfully!'
+    };
+  };
+
+  const updateUserPassword = (userId, currentPassword, newPassword) => {
+    const user = users.find(u => u.id === userId);
+    
+    if (!user) {
+      return {
+        success: false,
+        message: 'User not found!'
+      };
+    }
+    
+    // Verify current password
+    if (user.password !== currentPassword) {
+      return {
+        success: false,
+        message: 'Current password is incorrect!'
+      };
+    }
+    
+    // Update password
+    setUsers(users.map(u => 
+      u.id === userId ? { ...u, password: newPassword } : u
+    ));
+    
+    // If current user is updating their own password, update currentUser state
+    if (currentUser?.id === userId) {
+      setCurrentUser(prev => ({ ...prev, password: newPassword }));
+    }
+    
+    return {
+      success: true,
+      message: 'Password updated successfully!'
+    };
+  };
+
+  const resetPassword = (userId, newPassword) => {
+    // Only Super Admin can reset passwords
+    if (currentUser?.role !== 'superadmin') {
+      return {
+        success: false,
+        message: 'Unauthorized! Only Super Admin can reset passwords.'
+      };
+    }
+    
+    setUsers(users.map(u => 
+      u.id === userId ? { ...u, password: newPassword } : u
+    ));
+    
+    return {
+      success: true,
+      message: 'Password reset successfully!'
+    };
+  };
+
+  const getRoleBadgeColor = (role) => {
+    switch (role) {
+      case 'superadmin': return 'danger';
+      case 'manager': return 'info';
+      case 'user': return 'primary';
+      default: return 'secondary';
+    }
+  };
+
+  const getRoleIcon = (role) => {
+    switch (role) {
+      case 'superadmin': return 'bi-shield-fill-check';
+      case 'manager': return 'bi-person-badge-fill';
+      case 'user': return 'bi-person-fill';
+      default: return 'bi-person';
+    }
   };
 
   const value = {
     currentUser,
     users,
+    loading,
+    error,
     login,
     logout,
     addUser,
     deleteUser,
-    loading
+    updateUserPassword,
+    resetPassword,
+    getRoleBadgeColor,
+    getRoleIcon
   };
 
   return (
@@ -131,3 +229,5 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+export const useAuth = () => useContext(AuthContext);

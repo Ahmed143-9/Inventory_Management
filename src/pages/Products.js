@@ -1,174 +1,219 @@
-// src/pages/Products.js
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useInventory } from '../context/InventoryContext';
-import ProductList from '../components/inventory/ProductList';
-import AddProductForm from '../components/inventory/AddProductForm';
-import ImportProducts from '../components/inventory/ImportProducts';
-import ProtectedRoute from '../components/common/ProtectedRoute';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const Products = () => {
-  const { products, updateProduct, deleteProduct, addProduct, loading } = useInventory();
-  const [activeTab, setActiveTab] = useState('view');
+  const { products, loading, deleteProduct } = useInventory();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'view':
-        return (
-          <ProductList 
-            products={products} 
-            onUpdate={updateProduct}
-            onDelete={deleteProduct}
-          />
-        );
-      case 'add':
-        return <AddProductForm onAdd={addProduct} />;
-      case 'import':
-        return <ImportProducts onAdd={addProduct} />;
-      default:
-        return (
-          <ProductList 
-            products={products} 
-            onUpdate={updateProduct}
-            onDelete={deleteProduct}
-          />
-        );
+  if (loading) {
+    return <LoadingSpinner message="Loading products..." />;
+  }
+
+  // Get unique categories
+  const categories = ['all', ...new Set(products.map(p => p.category || 'Uncategorized'))];
+
+  // Filter products
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = searchTerm === '' || 
+      product.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.productCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.product?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = selectedCategory === 'all' || 
+      (product.category || 'Uncategorized') === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
+  const getStockStatus = (quantity) => {
+    if (quantity === 0) return { text: 'Out of Stock', class: 'danger' };
+    if (quantity < 10) return { text: 'Low Stock', class: 'warning' };
+    return { text: 'In Stock', class: 'success' };
+  };
+
+  const handleDelete = (id, name) => {
+    if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
+      deleteProduct(id);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: '50vh' }}>
-        <div className="text-center">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="mt-2 text-muted">Loading products...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <ProtectedRoute>
-      <div className="products-page container-fluid px-3 px-md-4 px-lg-5">
-        {/* Header Section - Full Width */}
-        <div className="row mb-3">
-          <div className="col-12">
-            <div className="card border-0 shadow-sm">
-              <div className="card-body py-3">
-                <div className="row align-items-center">
-                  <div className="col-md-8">
-                    <h2 className="card-title mb-1">
-                      <i className="bi bi-box-seam text-primary me-2"></i>
-                      Product Management
-                    </h2>
-                    <p className="text-muted mb-0 small">
-                      Manage your inventory products, add new items, or bulk import from CSV.
-                    </p>
-                  </div>
-                  <div className="col-md-4 text-end">
-                    <div className="bg-primary bg-opacity-10 rounded p-2 d-inline-block">
-                      <i className="bi bi-graph-up text-primary fs-4"></i>
-                    </div>
-                  </div>
-                </div>
-              </div>
+    <div className="products-page">
+      <div className="row mb-4">
+        <div className="col-md-12">
+          <div className="d-flex justify-content-between align-items-center">
+            <div>
+              <h2 className="mb-1">Products Inventory</h2>
+              <p className="text-muted mb-0">
+                Total: {products.length} products • Filtered: {filteredProducts.length}
+              </p>
             </div>
-          </div>
-        </div>
-
-        {/* Tab Navigation - Full Width */}
-        <div className="row mb-3">
-          <div className="col-12">
-            <div className="card border-0 shadow-sm">
-              <div className="card-body py-2">
-                <ul className="nav nav-pills nav-fill" role="tablist">
-                  <li className="nav-item" role="presentation">
-                    <button
-                      className={`nav-link ${activeTab === 'view' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('view')}
-                      type="button"
-                      role="tab"
-                    >
-                      <i className="bi bi-grid me-2"></i>
-                      View Products
-                      <span className="badge bg-secondary ms-2">{products.length}</span>
-                    </button>
-                  </li>
-                  <li className="nav-item" role="presentation">
-                    <button
-                      className={`nav-link ${activeTab === 'add' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('add')}
-                      type="button"
-                      role="tab"
-                    >
-                      <i className="bi bi-plus-circle me-2"></i>
-                      Add Single Product
-                    </button>
-                  </li>
-                  <li className="nav-item" role="presentation">
-                    <button
-                      className={`nav-link ${activeTab === 'import' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('import')}
-                      type="button"
-                      role="tab"
-                    >
-                      <i className="bi bi-file-earmark-spreadsheet me-2"></i>
-                      Import from Excel
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tab Content - Full Width */}
-        <div className="row">
-          <div className="col-12">
-            <div className="tab-content">
-              <div className="tab-pane fade show active">
-                {renderTabContent()}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Stats Footer - Full Width */}
-        <div className="row mt-3">
-          <div className="col-12">
-            <div className="card border-0 bg-light">
-              <div className="card-body py-2">
-                <div className="row text-center">
-                  <div className="col-6 col-md-3">
-                    <small className="text-muted d-block">Total Products</small>
-                    <strong className="text-primary">{products.length}</strong>
-                  </div>
-                  <div className="col-6 col-md-3">
-                    <small className="text-muted d-block">Categories</small>
-                    <strong className="text-success">
-                      {[...new Set(products.map(p => p.category))].length}
-                    </strong>
-                  </div>
-                  <div className="col-6 col-md-3">
-                    <small className="text-muted d-block">Low Stock</small>
-                    <strong className="text-warning">
-                      {products.filter(p => p.quantity < 10 && p.quantity > 0).length}
-                    </strong>
-                  </div>
-                  <div className="col-6 col-md-3">
-                    <small className="text-muted d-block">Out of Stock</small>
-                    <strong className="text-danger">
-                      {products.filter(p => p.quantity === 0).length}
-                    </strong>
-                  </div>
-                </div>
-              </div>
+            <div className="d-flex gap-2">
+              <Link to="/products/add" className="btn btn-primary">
+                <i className="bi bi-plus-circle me-2"></i>
+                Add Product
+              </Link>
+              <Link to="/products/import" className="btn btn-outline-primary">
+                <i className="bi bi-upload me-2"></i>
+                Import
+              </Link>
             </div>
           </div>
         </div>
       </div>
-    </ProtectedRoute>
+
+      {/* Filters */}
+      <div className="row mb-4">
+        <div className="col-md-8">
+          <div className="input-group">
+            <span className="input-group-text bg-light">
+              <i className="bi bi-search"></i>
+            </span>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search products by name, code, or description..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="col-md-4">
+          <select
+            className="form-select"
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+          >
+            {categories.map(category => (
+              <option key={category} value={category}>
+                {category === 'all' ? 'All Categories' : category}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Products Table */}
+      <div className="card border-0 shadow-sm">
+        <div className="card-body p-0">
+          <div className="table-responsive">
+            <table className="table table-hover mb-0">
+              <thead className="table-light">
+                <tr>
+                  <th>Product Code</th>
+                  <th>Product</th>
+                  <th>Product Name</th>
+                  <th>Size</th>
+                  <th>Material</th>
+                  <th>Model No</th>
+                  <th>Quantity</th>
+                  <th>Unit Rate</th>
+                  <th>Total Buy</th>
+                  <th>Sell Rate</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <thead className="table-light">
+                <tr>
+                  <th>Product Code</th>
+                  <th>Product</th>
+                  <th>Product Name</th>
+                  <th>Size</th>
+                  <th>Material</th>
+                  <th>Model No</th>
+                  <th>Quantity</th>
+                  <th>Unit Rate</th>
+                  <th>Total Buy</th>
+                  <th>Sell Rate</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredProducts.length === 0 ? (
+                  <tr>
+                    <td colSpan="11" className="text-center py-4">
+                      <i className="bi bi-box display-4 text-muted mb-3"></i>
+                      <h5>No products found</h5>
+                      <p className="text-muted">Try adjusting your search or add a new product</p>
+                      <Link to="/products/add" className="btn btn-primary">
+                        Add First Product
+                      </Link>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredProducts.map(product => {
+                    const stockStatus = getStockStatus(product.quantity || 0);
+                    
+                    return (
+                      <tr key={product.id}>
+                        <td>
+                          <span className="badge bg-secondary font-monospace">
+                            {product.productCode}
+                          </span>
+                        </td>
+                        <td>{product.product}</td>
+                        <td>
+                          <strong>{product.productName}</strong>
+                        </td>
+                        <td>{product.size || '-'}</td>
+                        <td>
+                          <span className="badge bg-info">{product.material}</span>
+                        </td>
+                        <td>{product.modelNo || '-'}</td>
+                        <td className="text-center">
+                          <span className={`badge ${
+                            product.quantity === 0 ? 'bg-danger' : 
+                            product.quantity < 10 ? 'bg-warning' : 'bg-success'
+                          }`}>
+                            {product.quantity}
+                          </span>
+                        </td>
+                        <td>৳{product.unitRate}</td>
+                        <td>
+                          <strong>৳{product.totalBuy}</strong>
+                        </td>
+                        <td>
+                          <strong className="text-success">৳{product.sellRate}</strong>
+                        </td>
+                        <td>
+                          <div className="btn-group btn-group-sm">
+                            <Link 
+                              to={`/products/view/${product.id}`}
+                              className="btn btn-outline-info"
+                              title="View"
+                            >
+                              <i className="bi bi-eye"></i>
+                            </Link>
+                            <Link 
+                              to={`/products/edit/${product.id}`}
+                              className="btn btn-outline-primary"
+                              title="Edit"
+                            >
+                              <i className="bi bi-pencil"></i>
+                            </Link>
+                            <button
+                              className="btn btn-outline-danger"
+                              onClick={() => handleDelete(product.id, product.productName)}
+                              title="Delete"
+                            >
+                              <i className="bi bi-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
