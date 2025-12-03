@@ -42,7 +42,7 @@ const Dashboard = () => {
                     Here's your inventory overview for {new Date().toLocaleDateString()}
                   </p>
                 </div>
-                <div className="col-md-4 text-end d-none d-md-block">
+                <div className="col-md-4 text-end d-none d-md-block color-black">
                   <div className="badge bg-white bg-opacity-20 text-white px-3 py-2">
                     <i className="bi bi-person-circle me-2"></i>
                     Role: <strong>{currentUser?.role}</strong>

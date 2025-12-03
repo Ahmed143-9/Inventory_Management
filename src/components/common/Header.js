@@ -1,4 +1,4 @@
-// src/components/common/Header.js - Professional Design
+// src/components/common/Header.js - BLACK TEXT VERSION
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -21,16 +21,16 @@ const Header = () => {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-gradient shadow-sm sticky-top">
+    <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
       <div className="container-fluid px-3 px-lg-5">
         {/* Brand/Logo */}
         <Link className="navbar-brand d-flex align-items-center" to="/dashboard">
-          <div className="brand-icon bg-white bg-opacity-20 rounded me-2 p-2">
-            <i className="bi bi-boxes text-white fs-4"></i>
+          <div className="brand-icon bg-primary bg-opacity-10 rounded me-2 p-2">
+            <i className="bi bi-boxes text-primary fs-4"></i>
           </div>
           <div className="brand-text">
-            <div className="fw-bold fs-5 lh-1">Inventory Management</div>
-            <small className="text-white-50 d-none d-md-block" style={{fontSize: '0.7rem'}}>
+            <div className="fw-bold fs-5 lh-1 text-dark">Inventory Management</div>
+            <small className="text-muted d-none d-md-block" style={{fontSize: '0.7rem'}}>
               Professional Stock Control System
             </small>
           </div>
@@ -53,7 +53,7 @@ const Header = () => {
             <li className="nav-item">
               <Link 
                 to="/dashboard" 
-                className={`nav-link px-3 ${isActive('/dashboard') ? 'active' : ''}`}
+                className={`nav-link px-3 text-dark fw-semibold ${isActive('/dashboard') ? 'active bg-primary bg-opacity-10 rounded' : ''}`}
               >
                 <i className="bi bi-speedometer2 me-2"></i>
                 Dashboard
@@ -62,7 +62,7 @@ const Header = () => {
             <li className="nav-item">
               <Link 
                 to="/products" 
-                className={`nav-link px-3 ${isActive('/products') ? 'active' : ''}`}
+                className={`nav-link px-3 text-dark fw-semibold ${isActive('/products') ? 'active bg-primary bg-opacity-10 rounded' : ''}`}
               >
                 <i className="bi bi-box-seam me-2"></i>
                 Products
@@ -72,7 +72,7 @@ const Header = () => {
               <li className="nav-item">
                 <Link 
                   to="/admin" 
-                  className={`nav-link px-3 ${isActive('/admin') ? 'active' : ''}`}
+                  className={`nav-link px-3 text-dark fw-semibold ${isActive('/admin') ? 'active bg-primary bg-opacity-10 rounded' : ''}`}
                 >
                   <i className="bi bi-shield-check me-2"></i>
                   Admin Panel
@@ -86,17 +86,17 @@ const Header = () => {
             {/* User Info Dropdown */}
             <div className="dropdown">
               <button 
-                className="btn btn-link text-white text-decoration-none dropdown-toggle d-flex align-items-center"
+                className="btn btn-link text-dark text-decoration-none dropdown-toggle d-flex align-items-center"
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 onBlur={() => setTimeout(() => setShowUserMenu(false), 200)}
               >
-                <div className="user-avatar bg-white bg-opacity-20 rounded-circle me-2 d-flex align-items-center justify-content-center"
+                <div className="user-avatar bg-primary bg-opacity-10 rounded-circle me-2 d-flex align-items-center justify-content-center"
                      style={{width: '40px', height: '40px'}}>
-                  <i className="bi bi-person-fill text-white fs-5"></i>
+                  <i className="bi bi-person-fill text-primary fs-5"></i>
                 </div>
                 <div className="text-start d-none d-lg-block">
-                  <div className="fw-semibold small">{currentUser?.name}</div>
-                  <div className="text-white-50" style={{fontSize: '0.7rem'}}>
+                  <div className="fw-semibold small text-dark">{currentUser?.name}</div>
+                  <div className="text-muted" style={{fontSize: '0.7rem'}}>
                     {currentUser?.role === 'superadmin' ? 'Super Admin' : 
                      currentUser?.role === 'manager' ? 'Manager' : 'User'}
                   </div>
@@ -110,7 +110,7 @@ const Header = () => {
                     <small className="text-muted">{currentUser?.email}</small>
                   </div>
                   <div className="dropdown-divider"></div>
-                  <Link className="dropdown-item" to="/dashboard">
+                  <Link className="dropdown-item text-dark" to="/dashboard">
                     <i className="bi bi-speedometer2 me-2"></i>
                     Dashboard
                   </Link>
