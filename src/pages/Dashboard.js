@@ -1,177 +1,414 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useInventory } from '../context/InventoryContext';
-import LoadingSpinner from '../components/common/LoadingSpinner';
+import { useDocument } from '../context/DocumentContext';
 
 const Dashboard = () => {
-  const { currentUser } = useAuth();
-  const { loading, getDashboardStats, getLowStockProducts, getRecentSales } = useInventory();
+  const { user } = useAuth();
+  const { products, purchases, sales } = useInventory();
+  const { totalExtraCost } = useDocument();
 
-  if (loading) {
-    return <LoadingSpinner message="Loading dashboard..." />;
-  }
+  // Calculate dashboard statistics with memoization
+  const stats = useMemo(() => {
+    const totalProducts = products.length;
+    const lowStockProducts = products.filter(product => product.quantity <= 5).length;
+    const outOfStockProducts = products.filter(product => product.quantity === 0).length;
+    
+    // Calculate total inventory value
+    const totalInventoryValue = products.reduce((sum, product) => {
+      return sum + (product.quantity * product.unitRate);
+    }, 0);
+    
+    // Calculate potential profit (adjusted for extra costs)
+    const totalProductValue = products.reduce((sum, product) => {
+      return sum + (product.quantity * product.sellRate);
+    }, 0);
+    
+    const totalCost = products.reduce((sum, product) => {
+      return sum + (product.quantity * product.unitRate);
+    }, 0);
+    
+    const potentialProfit = totalProductValue - totalCost - totalExtraCost;
+    
+    // Calculate recent transactions (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentPurchases = purchases.filter(purchase => 
+      new Date(purchase.purchaseDate) >= thirtyDaysAgo
+    ).length;
+    
+    const recentSales = sales.filter(sale => 
+      new Date(sale.saleDate) >= thirtyDaysAgo
+    ).length;
+    
+    return {
+      totalProducts,
+      lowStockProducts,
+      outOfStockProducts,
+      totalInventoryValue,
+      potentialProfit,
+      recentPurchases,
+      recentSales
+    };
+  }, [products, purchases, sales, totalExtraCost]);
 
-  const stats = getDashboardStats ? getDashboardStats() : {
-    totalProducts: 0,
-    totalStockValue: 0,
-    lowStockCount: 0,
-    outOfStockCount: 0,
-    totalSalesValue: 0,
-    totalPurchaseValue: 0,
-    profit: 0,
-    customerCount: 0,
-    supplierCount: 0
+  // Get top 5 low stock products with memoization
+  const lowStockItems = useMemo(() => {
+    return products
+      .filter(product => product.quantity <= 5 && product.quantity > 0)
+      .sort((a, b) => a.quantity - b.quantity)
+      .slice(0, 5);
+  }, [products]);
+
+  // Get out of stock products with memoization
+  const outOfStockItems = useMemo(() => {
+    return products
+      .filter(product => product.quantity === 0)
+      .slice(0, 5);
+  }, [products]);
+
+  // Get high-profit products with memoization
+  const highProfitProducts = useMemo(() => {
+    return products
+      .map(product => ({
+        ...product,
+        profitMargin: product.unitRate > 0 ? 
+          ((product.sellRate - product.unitRate) / product.unitRate * 100) : 0
+      }))
+      .filter(product => product.profitMargin > 0)
+      .sort((a, b) => b.profitMargin - a.profitMargin)
+      .slice(0, 5);
+  }, [products]);
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
   };
 
-  const lowStockProducts = getLowStockProducts ? getLowStockProducts() : [];
-  const recentSales = getRecentSales ? getRecentSales() : [];
-
   return (
-    <div className="dashboard-page">
-      <div className="row mb-4">
-        <div className="col-md-12">
-          <div className="card bg-gradient-primary text-white shadow-lg border-0">
-            <div className="card-body p-4">
-              <div className="row align-items-center">
-                <div className="col-md-8">
-                  <h2 className="card-title mb-1">
-                    Welcome back, {currentUser?.name}! 👋
-                  </h2>
-                  <p className="card-text opacity-75 mb-0">
-                    Here's your inventory overview for {new Date().toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="col-md-4 text-end d-none d-md-block color-black">
-                  <div className="badge bg-white bg-opacity-20 text-white px-3 py-2">
-                    <i className="bi bi-person-circle me-2"></i>
-                    Role: <strong>{currentUser?.role}</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className="container-fluid py-4">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+          <i className="bi bi-speedometer2 me-2"></i>
+          Dashboard
+        </h2>
+        <div className="text-end">
+          <p className="mb-0">Welcome back, {user?.name || 'User'}!</p>
+          <small className="text-muted">
+            {new Date().toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
+          </small>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="row mb-4">
-        <div className="col-md-3 mb-3">
-          <div className="card border-0 shadow-sm h-100">
+      <div className="row g-4 mb-4">
+        <div className="col-md-3">
+          <div className="card border-primary shadow-sm h-100">
             <div className="card-body">
-              <div className="d-flex justify-content-between align-items-start">
+              <div className="d-flex justify-content-between align-items-center">
                 <div>
-                  <h6 className="text-muted mb-2">Total Products</h6>
-                  <h3 className="text-primary mb-0">{stats.totalProducts}</h3>
-                  <small className="text-muted">In inventory</small>
+                  <h5 className="card-title text-primary">Total Products</h5>
+                  <h2 className="mb-0">{stats.totalProducts}</h2>
                 </div>
-                <div className="bg-primary bg-opacity-10 rounded p-2">
-                  <i className="bi bi-box-seam text-primary fs-4"></i>
-                </div>
+                <i className="bi bi-boxes text-primary" style={{fontSize: '2.5rem'}}></i>
               </div>
+              <Link to="/products" className="stretched-link"></Link>
             </div>
           </div>
         </div>
-
-        <div className="col-md-3 mb-3">
-          <div className="card border-0 shadow-sm h-100">
+        
+        <div className="col-md-3">
+          <div className="card border-warning shadow-sm h-100">
             <div className="card-body">
-              <div className="d-flex justify-content-between align-items-start">
+              <div className="d-flex justify-content-between align-items-center">
                 <div>
-                  <h6 className="text-muted mb-2">Stock Value</h6>
-                  <h3 className="text-success mb-0">${stats.totalStockValue.toLocaleString()}</h3>
-                  <small className="text-muted">Total worth</small>
+                  <h5 className="card-title text-warning">Low Stock Items</h5>
+                  <h2 className="mb-0">{stats.lowStockProducts}</h2>
                 </div>
-                <div className="bg-success bg-opacity-10 rounded p-2">
-                  <i className="bi bi-currency-dollar text-success fs-4"></i>
-                </div>
+                <i className="bi bi-exclamation-triangle text-warning" style={{fontSize: '2.5rem'}}></i>
               </div>
+              <Link to="/reports/stock" className="stretched-link"></Link>
             </div>
           </div>
         </div>
-
-        <div className="col-md-3 mb-3">
-          <div className="card border-0 shadow-sm h-100">
+        
+        <div className="col-md-3">
+          <div className="card border-danger shadow-sm h-100">
             <div className="card-body">
-              <div className="d-flex justify-content-between align-items-start">
+              <div className="d-flex justify-content-between align-items-center">
                 <div>
-                  <h6 className="text-muted mb-2">Low Stock</h6>
-                  <h3 className="text-warning mb-0">{stats.lowStockCount}</h3>
-                  <small className="text-muted">Need attention</small>
+                  <h5 className="card-title text-danger">Out of Stock</h5>
+                  <h2 className="mb-0">{stats.outOfStockProducts}</h2>
                 </div>
-                <div className="bg-warning bg-opacity-10 rounded p-2">
-                  <i className="bi bi-exclamation-triangle text-warning fs-4"></i>
-                </div>
+                <i className="bi bi-x-circle text-danger" style={{fontSize: '2.5rem'}}></i>
               </div>
+              <Link to="/reports/stock" className="stretched-link"></Link>
             </div>
           </div>
         </div>
-
-        <div className="col-md-3 mb-3">
-          <div className="card border-0 shadow-sm h-100">
+        
+        <div className="col-md-3">
+          <div className="card border-success shadow-sm h-100">
             <div className="card-body">
-              <div className="d-flex justify-content-between align-items-start">
+              <div className="d-flex justify-content-between align-items-center">
                 <div>
-                  <h6 className="text-muted mb-2">Total Sales</h6>
-                  <h3 className="text-info mb-0">${stats.totalSalesValue.toLocaleString()}</h3>
-                  <small className="text-muted">Revenue</small>
+                  <h5 className="card-title text-success">Potential Profit</h5>
+                  <h2 className="mb-0">{formatCurrency(stats.potentialProfit)}</h2>
+                  {totalExtraCost > 0 && (
+                    <small className="text-danger">
+                      <i className="bi bi-exclamation-triangle me-1"></i>
+                      Includes {formatCurrency(totalExtraCost)} extra costs
+                    </small>
+                  )}
                 </div>
-                <div className="bg-info bg-opacity-10 rounded p-2">
-                  <i className="bi bi-cart-check text-info fs-4"></i>
-                </div>
+                <i className="bi bi-currency-dollar text-success" style={{fontSize: '2.5rem'}}></i>
               </div>
+              <Link to="/reports/profit-loss" className="stretched-link"></Link>
             </div>
           </div>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="row">
-        <div className="col-md-12">
-          <div className="card border-0 shadow-sm">
-            <div className="card-header bg-transparent border-0">
-              <h5 className="card-title mb-0">
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card shadow-sm border-0">
+            <div className="card-header bg-white py-3">
+              <h5 className="mb-0">
                 <i className="bi bi-lightning me-2"></i>
                 Quick Actions
               </h5>
             </div>
             <div className="card-body">
               <div className="row g-3">
-                <div className="col-6 col-md-3">
-                  <Link to="/products/add" className="card text-decoration-none h-100 border">
-                    <div className="card-body text-center p-3">
-                      <i className="bi bi-plus-circle display-6 text-success mb-2"></i>
-                      <h6 className="card-title mb-1">Add Product</h6>
-                      <small className="text-muted">New item</small>
-                    </div>
+                <div className="col-md-3 col-6">
+                  <Link to="/products/add" className="btn btn-outline-primary w-100">
+                    <i className="bi bi-plus-circle me-2"></i>
+                    Add Product
                   </Link>
                 </div>
-                <div className="col-6 col-md-3">
-                  <Link to="/sales/add" className="card text-decoration-none h-100 border">
-                    <div className="card-body text-center p-3">
-                      <i className="bi bi-cart-plus display-6 text-primary mb-2"></i>
-                      <h6 className="card-title mb-1">New Sale</h6>
-                      <small className="text-muted">Create invoice</small>
-                    </div>
+                <div className="col-md-3 col-6">
+                  <Link to="/excel-import" className="btn btn-outline-success w-100">
+                    <i className="bi bi-file-earmark-spreadsheet me-2"></i>
+                    Import Excel
                   </Link>
                 </div>
-                <div className="col-6 col-md-3">
-                  <Link to="/products" className="card text-decoration-none h-100 border">
-                    <div className="card-body text-center p-3">
-                      <i className="bi bi-eye display-6 text-info mb-2"></i>
-                      <h6 className="card-title mb-1">View Products</h6>
-                      <small className="text-muted">Manage stock</small>
-                    </div>
+                <div className="col-md-3 col-6">
+                  <Link to="/documents" className="btn btn-outline-info w-100">
+                    <i className="bi bi-file-earmark-text me-2"></i>
+                    Documents
                   </Link>
                 </div>
-                <div className="col-6 col-md-3">
-                  <Link to="/reports" className="card text-decoration-none h-100 border">
-                    <div className="card-body text-center p-3">
-                      <i className="bi bi-graph-up display-6 text-warning mb-2"></i>
-                      <h6 className="card-title mb-1">Reports</h6>
-                      <small className="text-muted">View analytics</small>
-                    </div>
+                <div className="col-md-3 col-6">
+                  <Link to="/reports/profit-loss" className="btn btn-outline-warning w-100">
+                    <i className="bi bi-currency-dollar me-2"></i>
+                    Profit Report
                   </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Detailed Information Sections */}
+      <div className="row g-4">
+        {/* Low Stock Items */}
+        <div className="col-md-4">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-header bg-white py-3">
+              <h5 className="mb-0">
+                <i className="bi bi-exclamation-triangle text-warning me-2"></i>
+                Low Stock Items
+              </h5>
+            </div>
+            <div className="card-body">
+              {lowStockItems.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lowStockItems.map(product => (
+                        <tr key={product.id}>
+                          <td>
+                            <div className="fw-bold">{product.productName}</div>
+                            <small className="text-muted">{product.productCode}</small>
+                          </td>
+                          <td>
+                            <span className="badge bg-warning">{product.quantity} {product.unit}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <i className="bi bi-check-circle text-success" style={{fontSize: '2rem'}}></i>
+                  <p className="mt-2 mb-0">No low stock items!</p>
+                </div>
+              )}
+              <div className="text-center mt-3">
+                <Link to="/reports/stock" className="btn btn-outline-primary btn-sm">
+                  View Full Report
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Out of Stock Items */}
+        <div className="col-md-4">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-header bg-white py-3">
+              <h5 className="mb-0">
+                <i className="bi bi-x-circle text-danger me-2"></i>
+                Out of Stock Items
+              </h5>
+            </div>
+            <div className="card-body">
+              {outOfStockItems.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {outOfStockItems.map(product => (
+                        <tr key={product.id}>
+                          <td>
+                            <div className="fw-bold">{product.productName}</div>
+                            <small className="text-muted">{product.productCode}</small>
+                          </td>
+                          <td>
+                            <span className="badge bg-danger">Out of Stock</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <i className="bi bi-check-circle text-success" style={{fontSize: '2rem'}}></i>
+                  <p className="mt-2 mb-0">All products are in stock!</p>
+                </div>
+              )}
+              <div className="text-center mt-3">
+                <Link to="/reports/stock" className="btn btn-outline-primary btn-sm">
+                  View Full Report
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* High Profit Products */}
+        <div className="col-md-4">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-header bg-white py-3">
+              <h5 className="mb-0">
+                <i className="bi bi-graph-up text-success me-2"></i>
+                High Profit Products
+              </h5>
+            </div>
+            <div className="card-body">
+              {highProfitProducts.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Profit Margin</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {highProfitProducts.map(product => (
+                        <tr key={product.id}>
+                          <td>
+                            <div className="fw-bold">{product.productName}</div>
+                            <small className="text-muted">
+                              Buy: ${product.unitRate.toFixed(2)} | Sell: ${product.sellRate.toFixed(2)}
+                            </small>
+                          </td>
+                          <td>
+                            <span className="badge bg-success">
+                              {product.profitMargin.toFixed(1)}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <i className="bi bi-info-circle text-info" style={{fontSize: '2rem'}}></i>
+                  <p className="mt-2 mb-0">No profit data available</p>
+                </div>
+              )}
+              <div className="text-center mt-3">
+                <Link to="/reports/profit-loss" className="btn btn-outline-primary btn-sm">
+                  View Profit Report
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity Summary */}
+      <div className="row mt-4">
+        <div className="col-12">
+          <div className="card shadow-sm border-0">
+            <div className="card-header bg-white py-3">
+              <h5 className="mb-0">
+                <i className="bi bi-activity me-2"></i>
+                Recent Activity
+              </h5>
+            </div>
+            <div className="card-body">
+              <div className="row text-center">
+                <div className="col-md-3 mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <h4 className="text-primary">{stats.recentPurchases}</h4>
+                    <p className="mb-0">Recent Purchases</p>
+                  </div>
+                </div>
+                <div className="col-md-3 mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <h4 className="text-success">{stats.recentSales}</h4>
+                    <p className="mb-0">Recent Sales</p>
+                  </div>
+                </div>
+                <div className="col-md-3 mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <h4 className="text-info">{formatCurrency(stats.totalInventoryValue)}</h4>
+                    <p className="mb-0">Inventory Value</p>
+                  </div>
+                </div>
+                <div className="col-md-3 mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <h4 className="text-warning">{formatCurrency(totalExtraCost)}</h4>
+                    <p className="mb-0">Extra Costs</p>
+                  </div>
                 </div>
               </div>
             </div>

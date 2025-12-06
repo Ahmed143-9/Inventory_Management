@@ -19,8 +19,9 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Load user from localStorage on initial load
+  // Load user and users data from localStorage on initial load
   useEffect(() => {
+    // Load current user
     const savedUser = localStorage.getItem('inventory_user');
     if (savedUser) {
       try {
@@ -30,6 +31,25 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('inventory_user');
       }
     }
+    
+    // Load users list
+    const savedUsers = localStorage.getItem('inventory_users');
+    if (savedUsers) {
+      try {
+        const parsedUsers = JSON.parse(savedUsers);
+        // Ensure SUPER_ADMIN is always present
+        if (!parsedUsers.some(u => u.id === SUPER_ADMIN.id)) {
+          setUsers([SUPER_ADMIN, ...parsedUsers]);
+        } else {
+          setUsers(parsedUsers);
+        }
+      } catch (err) {
+        console.error('Error parsing saved users:', err);
+        // Fallback to initial state with SUPER_ADMIN
+        setUsers([SUPER_ADMIN]);
+      }
+    }
+    
     setLoading(false);
   }, []);
 
@@ -41,6 +61,13 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('inventory_user');
     }
   }, [currentUser]);
+  
+  // Save users list to localStorage when it changes
+  useEffect(() => {
+    // Don't save SUPER_ADMIN in the list since it's hardcoded
+    const usersToSave = users.filter(u => u.id !== SUPER_ADMIN.id);
+    localStorage.setItem('inventory_users', JSON.stringify(usersToSave));
+  }, [users]);
 
   const login = async (email, password) => {
     setError('');

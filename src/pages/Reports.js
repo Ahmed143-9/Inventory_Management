@@ -29,7 +29,7 @@ const Reports = () => {
       description: 'Track purchases and supplier performance',
       icon: 'bi-cart-plus',
       color: 'warning',
-      link: '/purchase'
+      link: '/reports/purchases'
     }
   ];
 

@@ -1,191 +1,211 @@
-import React, { useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import { useInventory } from '../context/InventoryContext';
-import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const StockReport = () => {
-  const { loading, getStockReport } = useInventory();
-  const [filter, setFilter] = useState('all');
+  const { products } = useInventory();
+  const [filter, setFilter] = useState('all'); // all, low, out, high
 
-  if (loading) {
-    return <LoadingSpinner message="Loading stock report..." />;
-  }
+  // Filter products based on stock status
+  const filteredProducts = useMemo(() => {
+    switch (filter) {
+      case 'low':
+        return products.filter(product => product.quantity <= 5 && product.quantity > 0);
+      case 'out':
+        return products.filter(product => product.quantity === 0);
+      case 'high':
+        return products.filter(product => product.quantity > 5);
+      default:
+        return products;
+    }
+  }, [products, filter]);
 
-  const stockData = getStockReport ? getStockReport() : [];
+  // Sort products by quantity (ascending for low stock, descending for high stock)
+  const sortedProducts = useMemo(() => {
+    return [...filteredProducts].sort((a, b) => {
+      if (filter === 'low' || filter === 'out') {
+        return a.quantity - b.quantity;
+      } else if (filter === 'high') {
+        return b.quantity - a.quantity;
+      }
+      return a.productName.localeCompare(b.productName);
+    });
+  }, [filteredProducts, filter]);
 
-  const filteredData = stockData.filter(item => {
-    if (filter === 'low' && item.quantity >= 10) return false;
-    if (filter === 'out' && item.quantity > 0) return false;
-    if (filter === 'healthy' && (item.quantity === 0 || item.quantity < 10)) return false;
-    return true;
-  });
-
-  const totalStockValue = filteredData.reduce((sum, item) => sum + (item.stockValue || 0), 0);
-  const totalPotentialValue = filteredData.reduce((sum, item) => sum + (item.potentialValue || 0), 0);
-  const totalPotentialProfit = filteredData.reduce((sum, item) => sum + (item.potentialProfit || 0), 0);
+  // Calculate totals
+  const totals = useMemo(() => {
+    return products.reduce((acc, product) => {
+      acc.totalQuantity += product.quantity;
+      acc.totalValue += product.quantity * product.unitRate;
+      return acc;
+    }, { totalQuantity: 0, totalValue: 0 });
+  }, [products]);
 
   return (
-    <div className="stock-report-page">
-      <div className="row mb-4">
-        <div className="col-md-12">
-          <div className="d-flex justify-content-between align-items-center">
-            <div>
-              <h2 className="mb-1">Stock Report</h2>
-              <p className="text-muted mb-0">Current inventory valuation and stock levels</p>
-            </div>
-            <div className="d-flex gap-2">
-              <button className="btn btn-outline-primary">
-                <i className="bi bi-download me-2"></i>
-                Export
-              </button>
-              <button className="btn btn-primary">
-                <i className="bi bi-printer me-2"></i>
-                Print
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="container-fluid py-4">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+          <i className="bi bi-inboxes me-2"></i>
+          Stock Report
+        </h2>
       </div>
 
       {/* Summary Cards */}
-      <div className="row mb-4">
-        <div className="col-md-3 mb-3">
-          <div className="card border-0 shadow-sm h-100">
+      <div className="row g-4 mb-4">
+        <div className="col-md-3">
+          <div className="card border-primary shadow-sm">
             <div className="card-body">
-              <h6 className="text-muted mb-2">Total Items</h6>
-              <h3 className="text-primary mb-0">{filteredData.length}</h3>
-              <small className="text-muted">Filtered products</small>
+              <h5 className="card-title text-primary">Total Products</h5>
+              <h2>{products.length}</h2>
             </div>
           </div>
         </div>
-        <div className="col-md-3 mb-3">
-          <div className="card border-0 shadow-sm h-100">
+        <div className="col-md-3">
+          <div className="card border-warning shadow-sm">
             <div className="card-body">
-              <h6 className="text-muted mb-2">Stock Value</h6>
-              <h3 className="text-success mb-0">${totalStockValue.toLocaleString()}</h3>
-              <small className="text-muted">Current worth</small>
+              <h5 className="card-title text-warning">Low Stock (&lt; 5)</h5>
+              <h2>{products.filter(p => p.quantity <= 5 && p.quantity > 0).length}</h2>
             </div>
           </div>
         </div>
-        <div className="col-md-3 mb-3">
-          <div className="card border-0 shadow-sm h-100">
+        <div className="col-md-3">
+          <div className="card border-danger shadow-sm">
             <div className="card-body">
-              <h6 className="text-muted mb-2">Potential Value</h6>
-              <h3 className="text-info mb-0">${totalPotentialValue.toLocaleString()}</h3>
-              <small className="text-muted">If all sold</small>
+              <h5 className="card-title text-danger">Out of Stock</h5>
+              <h2>{products.filter(p => p.quantity === 0).length}</h2>
             </div>
           </div>
         </div>
-        <div className="col-md-3 mb-3">
-          <div className="card border-0 shadow-sm h-100">
+        <div className="col-md-3">
+          <div className="card border-success shadow-sm">
             <div className="card-body">
-              <h6 className="text-muted mb-2">Potential Profit</h6>
-              <h3 className="text-warning mb-0">${totalPotentialProfit.toLocaleString()}</h3>
-              <small className="text-muted">Maximum profit</small>
+              <h5 className="card-title text-success">Total Quantity</h5>
+              <h2>{totals.totalQuantity}</h2>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="row mb-4">
-        <div className="col-md-12">
-          <div className="card border-0 shadow-sm">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 className="mb-0">Filter by Stock Status</h6>
-                </div>
-                <div className="btn-group">
-                  <button
-                    className={`btn ${filter === 'all' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => setFilter('all')}
-                  >
-                    All
-                  </button>
-                  <button
-                    className={`btn ${filter === 'healthy' ? 'btn-success' : 'btn-outline-success'}`}
-                    onClick={() => setFilter('healthy')}
-                  >
-                    Healthy Stock
-                  </button>
-                  <button
-                    className={`btn ${filter === 'low' ? 'btn-warning' : 'btn-outline-warning'}`}
-                    onClick={() => setFilter('low')}
-                  >
-                    Low Stock
-                  </button>
-                  <button
-                    className={`btn ${filter === 'out' ? 'btn-danger' : 'btn-outline-danger'}`}
-                    onClick={() => setFilter('out')}
-                  >
-                    Out of Stock
-                  </button>
-                </div>
-              </div>
+      {/* Filter Controls */}
+      <div className="card shadow-sm border-0 mb-4">
+        <div className="card-body">
+          <div className="d-flex justify-content-between align-items-center">
+            <h5 className="mb-0">Stock Status</h5>
+            <div className="btn-group" role="group">
+              <button 
+                type="button" 
+                className={`btn ${filter === 'all' ? 'btn-primary' : 'btn-outline-primary'}`}
+                onClick={() => setFilter('all')}
+              >
+                All Products
+              </button>
+              <button 
+                type="button" 
+                className={`btn ${filter === 'high' ? 'btn-success' : 'btn-outline-success'}`}
+                onClick={() => setFilter('high')}
+              >
+                High Stock
+              </button>
+              <button 
+                type="button" 
+                className={`btn ${filter === 'low' ? 'btn-warning' : 'btn-outline-warning'}`}
+                onClick={() => setFilter('low')}
+              >
+                Low Stock
+              </button>
+              <button 
+                type="button" 
+                className={`btn ${filter === 'out' ? 'btn-danger' : 'btn-outline-danger'}`}
+                onClick={() => setFilter('out')}
+              >
+                Out of Stock
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Stock Report Table */}
-      <div className="card border-0 shadow-sm">
-        <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table table-hover mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>Product</th>
-                  <th>Category</th>
-                  <th className="text-center">Quantity</th>
-                  <th>Purchase Rate</th>
-                  <th>Sell Rate</th>
-                  <th>Stock Value</th>
-                  <th>Potential Value</th>
-                  <th>Profit Margin</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData.map(item => (
-                  <tr key={item.id}>
-                    <td>
-                      <div>
-                        <strong>{item.productName}</strong>
-                        <div className="small text-muted">{item.productCode}</div>
-                      </div>
-                    </td>
-                    <td>{item.category}</td>
-                    <td className="text-center">
-                      <span className={`badge ${
-                        item.quantity === 0 ? 'bg-danger' : 
-                        item.quantity < 10 ? 'bg-warning' : 'bg-success'
-                      }`}>
-                        {item.quantity || 0}
-                      </span>
-                    </td>
-                    <td>${item.unitRate || 0}</td>
-                    <td>${item.sellRate || 0}</td>
-                    <td>
-                      <strong>${(item.stockValue || 0).toLocaleString()}</strong>
-                    </td>
-                    <td>
-                      <span className="text-success">
-                        ${(item.potentialValue || 0).toLocaleString()}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`badge ${
-                        item.profitMargin > 30 ? 'bg-success' :
-                        item.profitMargin > 15 ? 'bg-info' :
-                        item.profitMargin > 0 ? 'bg-warning' : 'bg-danger'
-                      }`}>
-                        {item.profitMargin?.toFixed(1)}%
-                      </span>
-                    </td>
+      {/* Stock Table */}
+      <div className="card shadow-sm border-0">
+        <div className="card-header bg-white py-3">
+          <h5 className="mb-0">
+            <i className="bi bi-list me-2"></i>
+            Product Stock Details
+          </h5>
+        </div>
+        <div className="card-body">
+          {sortedProducts.length > 0 ? (
+            <div className="table-responsive">
+              <table className="table table-hover">
+                <thead className="table-light">
+                  <tr>
+                    <th>Product Code</th>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Unit</th>
+                    <th>Quantity</th>
+                    <th>Unit Rate</th>
+                    <th>Sell Rate</th>
+                    <th>Total Value</th>
+                    <th>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {sortedProducts.map(product => (
+                    <tr key={product.id}>
+                      <td>{product.productCode}</td>
+                      <td>
+                        <div className="fw-bold">{product.productName}</div>
+                        <small className="text-muted">{product.product}</small>
+                      </td>
+                      <td>{product.category}</td>
+                      <td>{product.unit}</td>
+                      <td>
+                        <span className={`badge ${
+                          product.quantity === 0 ? 'bg-danger' : 
+                          product.quantity <= 5 ? 'bg-warning' : 'bg-success'
+                        }`}>
+                          {product.quantity} {product.unit}
+                        </span>
+                      </td>
+                      <td>${product.unitRate.toFixed(2)}</td>
+                      <td>${product.sellRate.toFixed(2)}</td>
+                      <td>${(product.quantity * product.unitRate).toFixed(2)}</td>
+                      <td>
+                        {product.quantity === 0 ? (
+                          <span className="badge bg-danger">Out of Stock</span>
+                        ) : product.quantity <= 5 ? (
+                          <span className="badge bg-warning">Low Stock</span>
+                        ) : (
+                          <span className="badge bg-success">In Stock</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="table-light">
+                  <tr>
+                    <th colSpan="7">Totals</th>
+                    <th>${totals.totalValue.toFixed(2)}</th>
+                    <th></th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-5">
+              <i className="bi bi-inbox text-muted" style={{fontSize: '3rem'}}></i>
+              <h4 className="mt-3">No products found</h4>
+              <p className="text-muted">
+                {filter === 'low' 
+                  ? "No products with low stock (quantity ≤ 5)" 
+                  : filter === 'out' 
+                  ? "No products are currently out of stock" 
+                  : filter === 'high' 
+                  ? "No products with high stock (quantity > 5)" 
+                  : "No products in inventory"}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

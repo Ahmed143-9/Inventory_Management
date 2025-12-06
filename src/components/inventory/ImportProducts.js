@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useInventory } from '../../context/InventoryContext';
+import * as XLSX from 'xlsx';
+import { parseExcelFile, formatProductData } from '../../utils/excelUtils';
 
 const ImportProducts = () => {
   const { addProduct } = useInventory();
@@ -80,18 +82,40 @@ const ImportProducts = () => {
     }
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setCsvData(event.target.result);
-      const parsed = parseCSV(event.target.result);
-      setPreviewData(parsed);
-      setActiveStep(2);
-    };
-    reader.readAsText(file);
+    try {
+      // Check if it's an Excel file
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        // Handle Excel file
+        const excelData = await parseExcelFile(file);
+        
+        // Process Product Master sheet if it exists
+        if (excelData['Product Master']) {
+          const formattedProducts = formatProductData(excelData['Product Master']);
+          setPreviewData(formattedProducts);
+          setActiveStep(2);
+          setMessage(`Excel file parsed successfully. Found ${formattedProducts.length} products.`);
+        } else {
+          setMessage('No Product Master sheet found in Excel file.');
+        }
+      } else {
+        // Handle CSV file
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setCsvData(event.target.result);
+          const parsed = parseCSV(event.target.result);
+          setPreviewData(parsed);
+          setActiveStep(2);
+        };
+        reader.readAsText(file);
+      }
+    } catch (error) {
+      console.error('Error processing file:', error);
+      setMessage('Error processing file. Please check the file format.');
+    }
   };
 
   const handleImport = async () => {
@@ -163,12 +187,12 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
         <div className="col-lg-10">
           {/* Header Card */}
           <div className="card shadow-sm border-0 mb-4">
-            <div className="card-header bg-info text-white py-3">
+            <div className="card-header bg-gradient-info text-white py-3">
               <div className="d-flex align-items-center">
                 <i className="bi bi-file-earmark-spreadsheet me-2"></i>
                 <h4 className="mb-0">Import Products from CSV/Excel</h4>
               </div>
-              <p className="mb-0 mt-1 opacity-75">Bulk import products using CSV format</p>
+              <p className="mb-0 mt-1 opacity-75">Bulk import products using CSV or Excel format</p>
             </div>
           </div>
 
@@ -179,19 +203,19 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
                 <div className="col-md-4">
                   <div className={`step-indicator ${activeStep >= 1 ? 'active' : ''}`}>
                     <div className={`step-number ${activeStep >= 1 ? 'bg-primary text-white' : 'bg-secondary text-white'} rounded-circle d-inline-flex align-items-center justify-content-center`} style={{width: '40px', height: '40px'}}>1</div>
-                    <div className="step-label mt-2">Upload Data</div>
+                    <div className="step-label mt-2 fw-medium">Upload Data</div>
                   </div>
                 </div>
                 <div className="col-md-4">
                   <div className={`step-indicator ${activeStep >= 2 ? 'active' : ''}`}>
                     <div className={`step-number ${activeStep >= 2 ? 'bg-primary text-white' : 'bg-secondary text-white'} rounded-circle d-inline-flex align-items-center justify-content-center`} style={{width: '40px', height: '40px'}}>2</div>
-                    <div className="step-label mt-2">Preview & Validate</div>
+                    <div className="step-label mt-2 fw-medium">Preview & Validate</div>
                   </div>
                 </div>
                 <div className="col-md-4">
                   <div className={`step-indicator ${activeStep >= 3 ? 'active' : ''}`}>
                     <div className={`step-number ${activeStep >= 3 ? 'bg-success text-white' : 'bg-secondary text-white'} rounded-circle d-inline-flex align-items-center justify-content-center`} style={{width: '40px', height: '40px'}}>3</div>
-                    <div className="step-label mt-2">Complete</div>
+                    <div className="step-label mt-2 fw-medium">Complete</div>
                   </div>
                 </div>
               </div>
@@ -199,9 +223,10 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
           </div>
 
           {message && (
-            <div className={`alert ${message.includes('Successfully') ? 'alert-success' : 'alert-danger'} d-flex align-items-center`}>
+            <div className={`alert ${message.includes('Successfully') ? 'alert-success' : 'alert-danger'} d-flex align-items-center alert-dismissible fade show`}>
               <i className={`bi ${message.includes('Successfully') ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2`}></i>
               {message}
+              <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
           )}
 
@@ -209,34 +234,44 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
           {activeStep === 1 && (
             <div className="card shadow-sm border-0">
               <div className="card-body p-4">
-                <h5 className="card-title mb-4">Choose Import Method</h5>
+                <h5 className="card-title mb-4">
+                  <i className="bi bi-cloud-arrow-up me-2"></i>
+                  Choose Import Method
+                </h5>
                 
                 <div className="row g-4">
                   <div className="col-md-6">
-                    <div className="card h-100 border">
+                    <div className="card h-100 border-dashed border-primary bg-light">
                       <div className="card-body text-center p-4">
-                        <i className="bi bi-cloud-arrow-up text-primary" style={{fontSize: '3rem'}}></i>
-                        <h5 className="card-title mt-3">Upload CSV File</h5>
+                        <div className="feature-icon bg-primary bg-gradient text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width: '60px', height: '60px'}}>
+                          <i className="bi bi-file-earmark-spreadsheet fs-4"></i>
+                        </div>
+                        <h5 className="card-title mt-3">Upload File</h5>
                         <p className="card-text text-muted">
-                          Upload a CSV file from your computer
+                          Upload a CSV or Excel file from your computer
                         </p>
                         <div className="mt-3">
                           <input
                             type="file"
-                            accept=".csv,.txt"
+                            accept=".csv,.xlsx,.xls"
                             onChange={handleFileUpload}
-                            className="form-control"
+                            className="form-control form-control-lg"
                             id="fileUpload"
                           />
+                          <div className="form-text">
+                            Supported formats: .csv, .xlsx, .xls
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="col-md-6">
-                    <div className="card h-100 border">
+                    <div className="card h-100 border-dashed border-success bg-light">
                       <div className="card-body text-center p-4">
-                        <i className="bi bi-clipboard-data text-success" style={{fontSize: '3rem'}}></i>
+                        <div className="feature-icon bg-success bg-gradient text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width: '60px', height: '60px'}}>
+                          <i className="bi bi-clipboard-data fs-4"></i>
+                        </div>
                         <h5 className="card-title mt-3">Paste CSV Data</h5>
                         <p className="card-text text-muted">
                           Paste CSV data directly into the text area
@@ -257,7 +292,7 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
 
                 <div className="row mt-4">
                   <div className="col-md-12">
-                    <div className="card bg-light border-0">
+                    <div className="card bg-gradient-light border-0">
                       <div className="card-body">
                         <h6 className="card-title">
                           <i className="bi bi-download text-primary me-2"></i>
@@ -278,7 +313,7 @@ Monitor,24-inch LED monitor,12,159.99,Electronics`;
                   </div>
                 </div>
 
-                <div className="row mt-3">
+                <div className="row mt-4">
                   <div className="col-md-12">
                     <label className="form-label fw-semibold">Or Paste CSV Data Here:</label>
                     <textarea
@@ -304,10 +339,16 @@ Mouse,Wireless mouse,50,25.99,Electronics"
           {activeStep === 2 && previewData.length > 0 && (
             <div className="card shadow-sm border-0">
               <div className="card-body p-4">
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h6 className="mb-0">
-                    Preview ({previewData.length} products ready for import)
-                  </h6>
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <div>
+                    <h5 className="mb-1">
+                      <i className="bi bi-eye me-2"></i>
+                      Preview Data
+                    </h5>
+                    <p className="text-muted mb-0">
+                      {previewData.length} products ready for import
+                    </p>
+                  </div>
                   <span className="badge bg-success">
                     <i className="bi bi-check-circle me-1"></i>
                     Valid Format
@@ -318,28 +359,45 @@ Mouse,Wireless mouse,50,25.99,Electronics"
                   <table className="table table-sm table-striped">
                     <thead className="table-light">
                       <tr>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Quantity</th>
-                        <th>Price</th>
+                        <th>Product Name</th>
                         <th>Category</th>
+                        <th>Details</th>
+                        <th>Stock</th>
+                        <th>Prices</th>
                       </tr>
                     </thead>
                     <tbody>
                       {previewData.slice(0, 5).map((product, index) => (
-                        <tr key={index}>
+                        <tr key={index} className="align-middle">
                           <td>
-                            <strong>{product.productName || product.name}</strong>
+                            <div className="fw-bold">{product.productName || product.name}</div>
+                            <div className="small text-muted">
+                              {product.product} - {product.modelNo}
+                            </div>
                           </td>
-                          <td className="text-muted">{product.description || '-'}</td>
-                          <td>
-                            <span className={`badge ${product.quantity === 0 ? 'bg-danger' : product.quantity < 10 ? 'bg-warning' : 'bg-success'}`}>
-                              {product.quantity || 0}
-                            </span>
-                          </td>
-                          <td>${product.unitRate || product.price || 0}</td>
                           <td>
                             <span className="badge bg-secondary">{product.category || 'N/A'}</span>
+                          </td>
+                          <td>
+                            <div className="d-flex flex-wrap gap-1">
+                              {product.brand && <span className="badge bg-info">{product.brand}</span>}
+                              {product.material && <span className="badge bg-primary">{product.material}</span>}
+                              {product.size && <span className="badge bg-warning text-dark">{product.size}</span>}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <span className={`badge ${product.quantity === 0 ? 'bg-danger' : product.quantity < 10 ? 'bg-warning' : 'bg-success'} me-1`}>
+                                {product.quantity || 0}
+                              </span>
+                              <span className="small text-muted">units</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="small">
+                              <div className="text-primary">Buy: ${product.unitRate || product.price || 0}</div>
+                              <div className="text-success">Sell: ${product.sellRate || 0}</div>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -387,7 +445,9 @@ Mouse,Wireless mouse,50,25.99,Electronics"
           {activeStep === 3 && (
             <div className="card shadow-sm border-0">
               <div className="card-body text-center p-5">
-                <i className="bi bi-check-circle text-success" style={{fontSize: '4rem'}}></i>
+                <div className="feature-icon bg-success bg-gradient text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-4 mx-auto" style={{width: '80px', height: '80px'}}>
+                  <i className="bi bi-check-circle fs-1"></i>
+                </div>
                 <h3 className="mt-3 text-success">Import Successful!</h3>
                 <p className="text-muted mb-4">
                   Your products have been successfully imported into the inventory system.

@@ -21,7 +21,7 @@ const Sidebar = () => {
       submenu: [
         { title: 'Products', path: '/products', icon: 'bi-box' },
         { title: 'Add Product', path: '/products/add', icon: 'bi-plus-circle' },
-        { title: 'Import Products', path: '/products/import', icon: 'bi-file-earmark-arrow-up' }
+        { title: 'Import/Export', path: '/data/import-export', icon: 'bi-file-earmark-spreadsheet' }
       ]
     },
     {
@@ -62,6 +62,7 @@ const Sidebar = () => {
         { title: 'All Reports', path: '/reports', icon: 'bi-clipboard-data' },
         { title: 'Stock Report', path: '/reports/stock', icon: 'bi-boxes' },
         { title: 'Sales Report', path: '/reports/sales', icon: 'bi-currency-dollar' },
+        { title: 'Purchase Report', path: '/reports/purchases', icon: 'bi-cart-plus' },
         { title: 'Profit & Loss', path: '/reports/profit-loss', icon: 'bi-calculator' }
       ]
     },

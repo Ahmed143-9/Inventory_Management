@@ -57,17 +57,24 @@ const Login = () => {
   };
 
   return (
-    <div className="login-page min-vh-100 d-flex align-items-center justify-content-center bg-light">
+    <div className="login-page min-vh-100 d-flex align-items-center justify-content-center bg-gradient-primary">
       <div className="container">
         <div className="row justify-content-center">
           <div className="col-md-6 col-lg-5">
-            <div className="card shadow-lg border-0">
-              <div className="card-header bg-primary text-white text-center py-4">
-                <h3 className="mb-0">
-                  <i className="bi bi-building-gear me-2"></i>
+            <div className="card shadow-lg border-0 rounded-4 overflow-hidden">
+              <div className="card-header bg-white text-center py-4 border-0">
+                <div className="mb-3">
+                  <img 
+                    src="/logo.jpeg" 
+                    alt="Company Logo" 
+                    className="img-fluid" 
+                    style={{maxHeight: '80px', width: 'auto'}}
+                  />
+                </div>
+                <h3 className="mb-1 text-primary">
                   Hardware Inventory System
                 </h3>
-                <p className="mb-0 opacity-75">Sign in to your account</p>
+                <p className="mb-0 text-muted small">Sign in to your account</p>
               </div>
               
               <div className="card-body p-4 p-md-5">
@@ -84,18 +91,18 @@ const Login = () => {
                 )}
                 
                 <form onSubmit={handleSubmit}>
-                  <div className="mb-4">
-                    <label className="form-label fw-semibold">
+                  <div className="mb-3">
+                    <label className="form-label fw-medium small text-muted">
                       <i className="bi bi-envelope me-1"></i>
                       Email Address
                     </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light">
-                        <i className="bi bi-person"></i>
+                      <span className="input-group-text bg-light border-0 rounded-start-2">
+                        <i className="bi bi-person text-primary"></i>
                       </span>
                       <input
                         type="email"
-                        className="form-control"
+                        className="form-control border-0 bg-light rounded-end-2"
                         placeholder="Enter your email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -105,18 +112,18 @@ const Login = () => {
                     </div>
                   </div>
                   
-                  <div className="mb-4">
-                    <label className="form-label fw-semibold">
+                  <div className="mb-3">
+                    <label className="form-label fw-medium small text-muted">
                       <i className="bi bi-key me-1"></i>
                       Password
                     </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light">
-                        <i className="bi bi-lock"></i>
+                      <span className="input-group-text bg-light border-0 rounded-start-2">
+                        <i className="bi bi-lock text-primary"></i>
                       </span>
                       <input
                         type={showPassword ? "text" : "password"}
-                        className="form-control"
+                        className="form-control border-0 bg-light rounded-end-2"
                         placeholder="Enter your password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -125,11 +132,11 @@ const Login = () => {
                       />
                       <button 
                         type="button"
-                        className="btn btn-outline-secondary"
+                        className="btn btn-outline-secondary border-0 rounded-end-2"
                         onClick={() => setShowPassword(!showPassword)}
                         disabled={isLoading}
                       >
-                        <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                        <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'} text-muted`}></i>
                       </button>
                     </div>
                   </div>
@@ -144,7 +151,7 @@ const Login = () => {
                         onChange={(e) => setRememberMe(e.target.checked)}
                         disabled={isLoading}
                       />
-                      <label className="form-check-label" htmlFor="rememberMe">
+                      <label className="form-check-label small" htmlFor="rememberMe">
                         Remember me
                       </label>
                     </div>
@@ -152,7 +159,7 @@ const Login = () => {
                     <div className="text-end">
                       <button 
                         type="button" 
-                        className="btn btn-link p-0 text-decoration-none"
+                        className="btn btn-link p-0 text-decoration-none small"
                         onClick={() => alert('Please contact Super Admin for password reset.')}
                       >
                         Forgot password?
@@ -162,7 +169,7 @@ const Login = () => {
                   
                   <button 
                     type="submit" 
-                    className="btn btn-primary w-100 py-2"
+                    className="btn btn-primary w-100 py-2 rounded-pill fw-medium"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -178,33 +185,11 @@ const Login = () => {
                     )}
                   </button>
                 </form>
-                
-                {/* <div className="mt-4 text-center">
-                  <div className="border-top pt-4">
-                    <h6 className="text-muted mb-3">Super Admin Credentials</h6>
-                    <div className="alert alert-info bg-light border-info">
-                      <div className="d-flex align-items-center">
-                        <i className="bi bi-info-circle me-2"></i>
-                        <div>
-                          <small className="d-block">
-                            <strong>Email:</strong> admin@inventory.com
-                          </small>
-                          <small className="d-block">
-                            <strong>Password:</strong> admin123
-                          </small>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-muted small">
-                      Only Super Admin can add new users to the system.
-                    </p>
-                  </div>
-                </div> */}
               </div>
             </div>
             
             <div className="text-center mt-4">
-              <p className="text-muted">
+              <p className="text-white small">
                 &copy; {new Date().getFullYear()} Hardware Inventory System. All rights reserved.
               </p>
             </div>

@@ -1,70 +1,145 @@
-# Getting Started with Create React App
+# Inventory Management System
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This is a complete Inventory Management System built with React that allows you to manage products, track stock levels, record purchases and sales, and generate reports.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- Product Management (CRUD operations)
+- Stock Tracking (In/Out movements)
+- Purchase and Sales Recording
+- Excel Import/Export functionality
+- Dashboard with Key Metrics
+- Detailed Reporting
+- Role-Based Access Control (RBAC)
+- Document Management with Extra Cost Tracking
+- Responsive Design
 
-### `npm start`
+## Role-Based Access Control (RBAC)
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+The system implements role-based access control to ensure data security:
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- **Admin (Super Admin)**: Can perform all actions including deleting products and documents
+- **Regular Users**: Can view and edit data but cannot delete anything
 
-### `npm test`
+Only users with the "superadmin" role can delete products or documents. This ensures that critical data cannot be accidentally removed by regular users.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Document Management & Extra Cost Tracking
 
-### `npm run build`
+The system now includes a Documents section where you can track extra costs that affect your profit margins:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Features:
+1. **Bill Entry**: Add bills with title, amount, description, and image attachment
+2. **Image Support**: Upload bill copies or receipts as images
+3. **Cost Tracking**: All extra costs are summed and displayed in the dashboard
+4. **Profit Adjustment**: Extra costs automatically reduce your net profit calculations
+5. **Detailed Reporting**: View breakdown of all extra costs in the Profit & Loss report
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### How it Works:
+1. Navigate to the "Documents" section from the sidebar
+2. Click "Add Bill" to enter a new expense
+3. Fill in the bill details and optionally attach an image
+4. The system will automatically track the total extra costs
+5. These costs are subtracted from your gross profit to show net profit
+6. Detailed breakdown is available in the Profit & Loss report
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Excel Import Functionality
 
-### `npm run eject`
+The system supports importing data from Excel files with multiple sheets. This allows you to quickly populate your inventory with existing data.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Supported Excel File Formats
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+1. **Product Master Sheet**
+   - Contains product information including:
+     - Product Code
+     - Product Name
+     - Category
+     - Quantity
+     - Unit Rate (Buy Price)
+     - Sell Rate
+     - Size, Brand, Material, Color, etc.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+2. **Purchase Record Sheet**
+   - Contains purchase transaction data:
+     - Date
+     - Invoice Number
+     - Product ID/Name
+     - Quantity Purchased
+     - Unit Price
+     - Supplier Information
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+3. **Sales Record Sheet**
+   - Contains sales transaction data:
+     - Date
+     - Invoice Number
+     - Customer Name
+     - Product ID/Name
+     - Quantity Sold
+     - Unit Price
+     - Total Sale Amount
 
-## Learn More
+### How to Import Excel Data
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+1. Navigate to the "Excel Import" section from the sidebar menu
+2. Click the "Choose File" button and select your Excel file
+3. The system will automatically process all sheets in the file:
+   - Product Master data will be added to your product inventory
+   - Purchase Record data will be processed for reporting
+   - Sales Record data will be processed for reporting
+4. After import, you can view the results in the dashboard
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### Dashboard Features
 
-### Code Splitting
+The dashboard provides key insights from your imported data:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+1. **Stock Status**
+   - Identifies products with low quantity (≤ 5 units)
+   - Shows out-of-stock items
+   - Displays total inventory value
 
-### Analyzing the Bundle Size
+2. **Profit Analysis**
+   - Compares buy price vs sell price for each product
+   - Calculates profit margin percentage
+   - Shows potential profit based on current stock levels
+   - Automatically adjusts for extra costs
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+3. **Quick Actions**
+   - Direct links to add products
+   - Import more Excel files
+   - View detailed reports
 
-### Making a Progressive Web App
+### Reports Available
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+1. **Stock Report**
+   - Detailed view of all products with stock levels
+   - Filtering options for high/low/out-of-stock items
+   - Total inventory valuation
 
-### Advanced Configuration
+2. **Profit & Loss Report**
+   - Profit calculation per product
+   - Overall profit margin analysis
+   - Identification of profitable vs non-profitable items
+   - Automatic adjustment for extra costs
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+3. **Purchase Report**
+   - History of all purchase transactions
+   - Supplier analysis
 
-### Deployment
+4. **Sales Report**
+   - History of all sales transactions
+   - Customer analysis
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## Getting Started
 
-### `npm run build` fails to minify
+1. Open the application in your browser
+2. Use the sidebar navigation to access different features
+3. To import your existing data:
+   - Go to "Excel Import" in the sidebar
+   - Upload your Excel files
+   - View results in the Dashboard
+4. Manage your inventory through the Products section
+5. Track extra costs in the Documents section
+6. Generate reports as needed
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## Support
+
+For any issues or questions about the Excel import functionality, please contact the development team.

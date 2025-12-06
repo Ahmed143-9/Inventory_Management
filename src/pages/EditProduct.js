@@ -10,11 +10,13 @@ const EditProduct = () => {
   
   const [formData, setFormData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [originalProduct, setOriginalProduct] = useState(null);
 
   useEffect(() => {
     const product = products.find(p => p.id === parseInt(id));
     if (product) {
-      setFormData(product);
+      setFormData({ ...product });
+      setOriginalProduct(product);
     }
     setLoading(false);
   }, [id, products]);
@@ -38,16 +40,35 @@ const EditProduct = () => {
   }
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+    // Handle number inputs properly
+    const val = type === 'number' ? (value === '' ? '' : Number(value)) : value;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: val
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    updateProduct(parseInt(id), formData);
+    
+    // Create an object with only the changed fields
+    const updates = {};
+    Object.keys(formData).forEach(key => {
+      if (formData[key] !== originalProduct[key]) {
+        updates[key] = formData[key];
+      }
+    });
+    
+    // Always update the updatedAt timestamp
+    updates.updatedAt = new Date().toISOString();
+    
+    // Recalculate totalBuy if quantity or unitRate changed
+    if (updates.quantity !== undefined || updates.unitRate !== undefined) {
+      updates.totalBuy = (formData.quantity || 0) * (formData.unitRate || 0);
+    }
+    
+    updateProduct(parseInt(id), updates);
     alert('Product updated successfully!');
     navigate('/products');
   };
@@ -90,7 +111,7 @@ const EditProduct = () => {
                     type="text"
                     className="form-control"
                     name="product"
-                    value={formData.product}
+                    value={formData.product || ''}
                     onChange={handleChange}
                     required
                   />
@@ -102,7 +123,7 @@ const EditProduct = () => {
                     type="text"
                     className="form-control"
                     name="productName"
-                    value={formData.productName}
+                    value={formData.productName || ''}
                     onChange={handleChange}
                     required
                   />
@@ -115,7 +136,7 @@ const EditProduct = () => {
                       type="text"
                       className="form-control"
                       name="size"
-                      value={formData.size}
+                      value={formData.size || ''}
                       onChange={handleChange}
                     />
                   </div>
@@ -125,7 +146,7 @@ const EditProduct = () => {
                       type="text"
                       className="form-control"
                       name="modelNo"
-                      value={formData.modelNo}
+                      value={formData.modelNo || ''}
                       onChange={handleChange}
                     />
                   </div>
@@ -137,7 +158,7 @@ const EditProduct = () => {
                     type="text"
                     className="form-control"
                     name="category"
-                    value={formData.category}
+                    value={formData.category || ''}
                     onChange={handleChange}
                   />
                 </div>
@@ -156,7 +177,7 @@ const EditProduct = () => {
                       type="number"
                       className="form-control"
                       name="quantity"
-                      value={formData.quantity}
+                      value={formData.quantity || ''}
                       onChange={handleChange}
                       min="0"
                     />
@@ -167,7 +188,7 @@ const EditProduct = () => {
                       type="text"
                       className="form-control"
                       name="unit"
-                      value={formData.unit}
+                      value={formData.unit || ''}
                       onChange={handleChange}
                     />
                   </div>
@@ -181,7 +202,7 @@ const EditProduct = () => {
                       type="number"
                       className="form-control"
                       name="unitRate"
-                      value={formData.unitRate}
+                      value={formData.unitRate || ''}
                       onChange={handleChange}
                       min="0"
                       step="0.01"
@@ -197,7 +218,7 @@ const EditProduct = () => {
                       type="number"
                       className="form-control"
                       name="sellRate"
-                      value={formData.sellRate}
+                      value={formData.sellRate || ''}
                       onChange={handleChange}
                       min="0"
                       step="0.01"
@@ -212,7 +233,7 @@ const EditProduct = () => {
                       type="text"
                       className="form-control"
                       name="material"
-                      value={formData.material}
+                      value={formData.material || ''}
                       onChange={handleChange}
                     />
                   </div>
@@ -222,7 +243,7 @@ const EditProduct = () => {
                       type="text"
                       className="form-control"
                       name="color"
-                      value={formData.color}
+                      value={formData.color || ''}
                       onChange={handleChange}
                     />
                   </div>
