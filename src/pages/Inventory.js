@@ -6,7 +6,7 @@ import AddProduct from './AddProduct';
 import ProtectedRoute from '../components/common/ProtectedRoute';
 
 const Inventory = () => {
-  const { products, addProduct, updateProduct, deleteProduct } = useInventory();
+  const { products, sales, addProduct, updateProduct, deleteProduct } = useInventory();
 
   return (
     <ProtectedRoute>
@@ -16,6 +16,7 @@ const Inventory = () => {
         <AddProduct onAdd={addProduct} />
         <ProductList 
           products={products} 
+          sales={sales}
           onUpdate={updateProduct}
           onDelete={deleteProduct}
         />

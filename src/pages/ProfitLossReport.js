@@ -1,45 +1,131 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useInventory } from '../context/InventoryContext';
 import { useDocument } from '../context/DocumentContext';
 
 const ProfitLossReport = () => {
-  const { products } = useInventory();
-  const { totalExtraCost, documents } = useDocument();
-  const [sortBy, setSortBy] = useState('profitMargin'); // profitMargin, productName, quantity
-  const [sortOrder, setSortOrder] = useState('desc'); // asc, desc
+  const { products, purchases, sales } = useInventory();
+  const { documents } = useDocument();
+  const [sortBy, setSortBy] = useState('profitMargin');
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  // Calculate total extra costs from documents
+  const totalExtraCost = useMemo(() => {
+    return documents.reduce((sum, doc) => sum + (doc.amount || 0), 0);
+  }, [documents]);
 
   // Calculate profit data for each product
   const profitData = useMemo(() => {
+    if (!products || products.length === 0) {
+      return [];
+    }
+    
     return products.map(product => {
-      const buyPrice = product.unitRate || 0;
-      const sellPrice = product.sellRate || 0;
-      const quantity = product.quantity || 0;
+      // Safely extract product information with fallbacks
+      const productId = product.id || '';
+      const productName = product.productName || product.name || 'Unknown Product';
+      const productCode = product.productCode || product.code || '';
       
-      const profitPerUnit = sellPrice - buyPrice;
-      const totalProfit = profitPerUnit * quantity;
-      const profitMargin = buyPrice > 0 ? (profitPerUnit / buyPrice) * 100 : 0;
+      // Extract quantity with multiple fallbacks
+      const quantity = (() => {
+        if (typeof product.quantity === 'number') return product.quantity;
+        if (typeof product.currentStock === 'number') return product.currentStock;
+        if (typeof product.stock === 'number') return product.stock;
+        return 0;
+      })();
+      
+      // Extract cost with multiple fallbacks
+      const cost = (() => {
+        if (typeof product.cost === 'number') return product.cost;
+        if (typeof product.unitRate === 'number') return product.unitRate;
+        if (typeof product.buyPrice === 'number') return product.buyPrice;
+        if (typeof product.purchasePrice === 'number') return product.purchasePrice;
+        return 0;
+      })();
+      
+      // Extract price with multiple fallbacks
+      const price = (() => {
+        if (typeof product.price === 'number') return product.price;
+        if (typeof product.sellRate === 'number') return product.sellRate;
+        if (typeof product.sellPrice === 'number') return product.sellPrice;
+        return 0;
+      })();
+      
+      // Calculate total quantity from purchases
+      const totalPurchased = purchases
+        .filter(p => p.productId === productId)
+        .reduce((sum, purchase) => sum + (purchase.quantity || 0), 0);
+      
+      // Calculate total sold quantity from sales
+      const totalSold = sales
+        .filter(s => s.productId === productId)
+        .reduce((sum, sale) => sum + (sale.quantity || 0), 0);
+      
+      // Total investment (cost of all purchased items)
+      const totalInvestment = totalPurchased * cost;
+      
+      // Total revenue (sell price * quantity sold)
+      const totalRevenue = totalSold * price;
+      
+      // Total profit
+      const totalProfit = totalRevenue - (totalSold * cost);
+      
+      // Profit margin percentage
+      const profitMargin = totalSold > 0 && (totalSold * cost) > 0 ? 
+        (totalProfit / (totalSold * cost)) * 100 : 0;
       
       return {
-        ...product,
-        buyPrice,
-        sellPrice,
-        profitPerUnit,
+        productId,
+        productName,
+        productCode,
+        quantity,
+        totalInvestment,
+        totalRevenue,
         totalProfit,
         profitMargin
       };
     });
-  }, [products]);
+  }, [products, purchases, sales]);
 
-  // Sort products based on selected criteria
+  // Calculate totals
+  const totals = useMemo(() => {
+    return {
+      totalInvestment: profitData.reduce((sum, item) => sum + (item.totalInvestment || 0), 0),
+      totalRevenue: profitData.reduce((sum, item) => sum + (item.totalRevenue || 0), 0),
+      totalProfit: profitData.reduce((sum, item) => sum + (item.totalProfit || 0), 0)
+    };
+  }, [profitData]);
+
+  // Adjusted profit after extra costs
+  const adjustedProfit = (totals.totalProfit || 0) - (totalExtraCost || 0);
+  
+  // Overall profit margins
+  const overallProfitMargin = (totals.totalInvestment || 0) > 0 ? 
+    ((totals.totalProfit || 0) / (totals.totalInvestment || 0)) * 100 : 0;
+    
+  const adjustedProfitMargin = (totals.totalInvestment || 0) > 0 ? 
+    ((adjustedProfit || 0) / (totals.totalInvestment || 0)) * 100 : 0;
+
+  // Sort profit data
   const sortedProfitData = useMemo(() => {
     return [...profitData].sort((a, b) => {
-      let aValue = a[sortBy];
-      let bValue = b[sortBy];
+      let aValue, bValue;
       
-      // Handle special sorting for profit margin
-      if (sortBy === 'profitMargin') {
-        aValue = a.profitMargin;
-        bValue = b.profitMargin;
+      switch (sortBy) {
+        case 'productName':
+          aValue = a.productName.toLowerCase();
+          bValue = b.productName.toLowerCase();
+          break;
+        case 'totalProfit':
+          aValue = a.totalProfit;
+          bValue = b.totalProfit;
+          break;
+        case 'quantity':
+          aValue = a.quantity;
+          bValue = b.quantity;
+          break;
+        default: // profitMargin
+          aValue = a.profitMargin;
+          bValue = b.profitMargin;
       }
       
       if (sortOrder === 'asc') {
@@ -50,42 +136,25 @@ const ProfitLossReport = () => {
     });
   }, [profitData, sortBy, sortOrder]);
 
-  // Calculate overall totals
-  const totals = useMemo(() => {
-    return profitData.reduce((acc, product) => {
-      acc.totalInvestment += product.buyPrice * product.quantity;
-      acc.totalRevenue += product.sellPrice * product.quantity;
-      acc.totalProfit += product.totalProfit;
-      return acc;
-    }, {
-      totalInvestment: 0,
-      totalRevenue: 0,
-      totalProfit: 0
-    });
-  }, [profitData]);
-
-  // Calculate adjusted profit (subtracting extra costs)
-  const adjustedProfit = totals.totalProfit - totalExtraCost;
-  
-  // Calculate profit margin percentage
-  const overallProfitMargin = totals.totalInvestment > 0 
-    ? (totals.totalProfit / totals.totalInvestment) * 100 
-    : 0;
-    
-  const adjustedProfitMargin = totals.totalInvestment > 0 
-    ? (adjustedProfit / totals.totalInvestment) * 100 
-    : 0;
-
-  // Toggle sort order
   const toggleSortOrder = () => {
     setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    // Handle null, undefined, or non-numeric values
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return '৳0.00';
+    }
+    
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'BDT'
+      }).format(amount);
+    } catch (error) {
+      // Fallback formatting if Intl fails
+      return `৳${parseFloat(amount).toFixed(2)}`;
+    }
   };
 
   return (
@@ -282,58 +351,49 @@ const ProfitLossReport = () => {
                 <thead className="table-light">
                   <tr>
                     <th>Product</th>
-                    <th>Category</th>
                     <th>Quantity</th>
-                    <th>Buy Price</th>
-                    <th>Sell Price</th>
-                    <th>Profit/Unit</th>
-                    <th>Total Profit</th>
+                    <th>Investment</th>
+                    <th>Revenue</th>
+                    <th>Gross Profit</th>
                     <th>Profit Margin</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedProfitData.map(product => (
-                    <tr key={product.id}>
+                  {sortedProfitData.map((item, index) => (
+                    <tr key={index}>
                       <td>
-                        <div className="fw-bold">{product.productName}</div>
-                        <small className="text-muted">{product.productCode}</small>
+                        <div className="fw-bold">{item.productName}</div>
+                        <small className="text-muted">{item.productCode}</small>
                       </td>
-                      <td>{product.category}</td>
-                      <td>{product.quantity} {product.unit}</td>
-                      <td>{formatCurrency(product.buyPrice)}</td>
-                      <td>{formatCurrency(product.sellPrice)}</td>
-                      <td className={product.profitPerUnit >= 0 ? 'text-success' : 'text-danger'}>
-                        {formatCurrency(product.profitPerUnit)}
-                      </td>
-                      <td className={product.totalProfit >= 0 ? 'text-success' : 'text-danger'}>
-                        {formatCurrency(product.totalProfit)}
+                      <td>{item.quantity}</td>
+                      <td>{formatCurrency(item.totalInvestment)}</td>
+                      <td>{formatCurrency(item.totalRevenue)}</td>
+                      <td>
+                        <span className={item.totalProfit >= 0 ? 'text-success' : 'text-danger'}>
+                          {formatCurrency(item.totalProfit)}
+                        </span>
                       </td>
                       <td>
                         <span className={`badge ${
-                          product.profitMargin > 20 ? 'bg-success' : 
-                          product.profitMargin > 0 ? 'bg-warning' : 'bg-danger'
+                          item.profitMargin > 20 ? 'bg-success' : 
+                          item.profitMargin > 10 ? 'bg-warning' : 
+                          item.profitMargin > 0 ? 'bg-info' : 'bg-danger'
                         }`}>
-                          {product.profitMargin.toFixed(2)}%
+                          {item.profitMargin.toFixed(2)}%
                         </span>
                       </td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="table-light">
-                  <tr>
-                    <th colSpan="5">Totals</th>
-                    <th>{formatCurrency(totals.totalRevenue - totals.totalInvestment)}</th>
-                    <th>{formatCurrency(totals.totalProfit)}</th>
-                    <th>{overallProfitMargin.toFixed(2)}%</th>
-                  </tr>
-                </tfoot>
               </table>
             </div>
           ) : (
             <div className="text-center py-5">
-              <i className="bi bi-currency-dollar text-muted" style={{fontSize: '3rem'}}></i>
-              <h4 className="mt-3">No products found</h4>
-              <p className="text-muted">There are no products in your inventory to analyze.</p>
+              <i className="bi bi-info-circle display-1 text-muted"></i>
+              <h4 className="mt-3">No profit data available</h4>
+              <p className="text-muted">
+                Add products and transactions to generate profit analysis
+              </p>
             </div>
           )}
         </div>
@@ -344,16 +404,13 @@ const ProfitLossReport = () => {
         <div className="modal-dialog modal-lg">
           <div className="modal-content">
             <div className="modal-header">
-              <h5 className="modal-title">
-                <i className="bi bi-receipt me-2"></i>
-                Extra Costs Breakdown
-              </h5>
+              <h5 className="modal-title">Extra Costs Details</h5>
               <button type="button" className="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div className="modal-body">
               <div className="table-responsive">
-                <table className="table table-hover">
-                  <thead className="table-light">
+                <table className="table">
+                  <thead>
                     <tr>
                       <th>Title</th>
                       <th>Description</th>
@@ -362,29 +419,17 @@ const ProfitLossReport = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {documents.map(document => (
-                      <tr key={document.id}>
-                        <td>{document.title}</td>
-                        <td>{document.description || '-'}</td>
-                        <td className="text-danger">{formatCurrency(document.amount)}</td>
-                        <td>{new Date(document.date).toLocaleDateString()}</td>
+                    {documents.map(doc => (
+                      <tr key={doc.id}>
+                        <td>{doc.title}</td>
+                        <td>{doc.description || '-'}</td>
+                        <td className="text-danger fw-bold">{formatCurrency(doc.amount)}</td>
+                        <td>{new Date(doc.createdAt).toLocaleDateString()}</td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="table-light">
-                    <tr>
-                      <th colSpan="2">Total Extra Costs</th>
-                      <th className="text-danger">{formatCurrency(totalExtraCost)}</th>
-                      <th></th>
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
-                Close
-              </button>
             </div>
           </div>
         </div>

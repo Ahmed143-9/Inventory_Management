@@ -7,6 +7,7 @@ const AddProductForm = ({ onAdd }) => {
     description: '',
     quantity: '',
     price: '',
+    cost: '',
     category: ''
   });
   const [message, setMessage] = useState('');
@@ -29,6 +30,7 @@ const AddProductForm = ({ onAdd }) => {
         description: formData.description.trim(),
         quantity: parseInt(formData.quantity) || 0,
         price: parseFloat(formData.price) || 0,
+        cost: parseFloat(formData.cost) || 0,
         category: formData.category.trim()
       };
 
@@ -43,6 +45,7 @@ const AddProductForm = ({ onAdd }) => {
         description: '',
         quantity: '',
         price: '',
+        cost: '',
         category: ''
       });
     } catch (error) {
@@ -67,6 +70,7 @@ const AddProductForm = ({ onAdd }) => {
       description: '',
       quantity: '',
       price: '',
+      cost: '',
       category: ''
     });
     setMessage('');
@@ -145,7 +149,7 @@ const AddProductForm = ({ onAdd }) => {
 
                 {/* Quantity, Price, Category */}
                 <div className="row mb-4">
-                  <div className="col-md-4">
+                  <div className="col-md-3">
                     <label htmlFor="productQuantity" className="form-label fw-semibold">
                       Quantity
                     </label>
@@ -167,12 +171,33 @@ const AddProductForm = ({ onAdd }) => {
                     <div className="form-text">Current stock quantity</div>
                   </div>
 
-                  <div className="col-md-4">
-                    <label htmlFor="productPrice" className="form-label fw-semibold">
-                      Price ($)
+                  <div className="col-md-3">
+                    <label htmlFor="productCost" className="form-label fw-semibold">
+                      Cost (৳)
                     </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light">$</span>
+                      <span className="input-group-text bg-light">৳</span>
+                      <input
+                        type="number"
+                        id="productCost"
+                        name="cost"
+                        className="form-control"
+                        placeholder="0.00"
+                        value={formData.cost}
+                        onChange={handleChange}
+                        step="0.01"
+                        min="0"
+                      />
+                    </div>
+                    <div className="form-text">Unit cost in BDT</div>
+                  </div>
+
+                  <div className="col-md-3">
+                    <label htmlFor="productPrice" className="form-label fw-semibold">
+                      Price (৳)
+                    </label>
+                    <div className="input-group">
+                      <span className="input-group-text bg-light">৳</span>
                       <input
                         type="number"
                         id="productPrice"
@@ -185,10 +210,10 @@ const AddProductForm = ({ onAdd }) => {
                         min="0"
                       />
                     </div>
-                    <div className="form-text">Unit price in USD</div>
+                    <div className="form-text">Unit price in BDT</div>
                   </div>
 
-                  <div className="col-md-4">
+                  <div className="col-md-3">
                     <label htmlFor="productCategory" className="form-label fw-semibold">
                       Category
                     </label>

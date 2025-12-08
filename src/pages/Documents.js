@@ -1,25 +1,33 @@
 import React, { useState, useMemo } from 'react';
-import { useDocument } from '../context/DocumentContext';
 import { useAuth } from '../context/AuthContext';
+import { useDocument } from '../context/DocumentContext';
 
 const Documents = () => {
-  const { documents, addDocument, deleteDocument, totalExtraCost } = useDocument();
   const { currentUser } = useAuth();
+  const { documents, addDocument, deleteDocument } = useDocument();
+  const [showForm, setShowForm] = useState(false);
+  const [editingDoc, setEditingDoc] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
-    amount: '',
     description: '',
-    image: null
+    amount: ''
   });
-  const [imagePreview, setImagePreview] = useState(null);
-  const [showForm, setShowForm] = useState(false);
+  const [imagePreview, setImagePreview] = useState('');
 
-  // Check if user is admin (only admins can delete)
-  const isAdmin = currentUser && currentUser.role === 'superadmin';
+  // Check if current user is admin
+  const isAdmin = currentUser?.role === 'superadmin';
 
-  // Memoize sorted documents
+  // Calculate total extra costs
+  const totalExtraCost = useMemo(() => {
+    const total = documents.reduce((sum, doc) => sum + (doc.amount || 0), 0);
+    return total;
+  }, [documents]);
+
+  // Sort documents by date (newest first)
   const sortedDocuments = useMemo(() => {
-    return [...documents].sort((a, b) => new Date(b.date) - new Date(a.date));
+    return [...documents].sort((a, b) => 
+      new Date(b.createdAt) - new Date(a.createdAt)
+    );
   }, [documents]);
 
   const handleInputChange = (e) => {
@@ -33,12 +41,6 @@ const Documents = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData(prev => ({
-        ...prev,
-        image: file
-      }));
-      
-      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -54,28 +56,42 @@ const Documents = () => {
       alert('Please fill in all required fields');
       return;
     }
-    
-    const newDocument = {
-      id: Date.now(),
-      title: formData.title,
+
+    const documentData = {
+      id: editingDoc ? editingDoc.id : Date.now().toString(),
+      ...formData,
       amount: parseFloat(formData.amount),
-      description: formData.description,
       imageUrl: imagePreview,
-      date: new Date().toISOString(),
-      createdBy: currentUser?.name || 'Unknown'
+      createdAt: editingDoc ? editingDoc.createdAt : new Date().toISOString(),
+      createdBy: {
+        id: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email
+      }
     };
-    
-    addDocument(newDocument);
+
+    addDocument(documentData);
     
     // Reset form
     setFormData({
       title: '',
-      amount: '',
       description: '',
-      image: null
+      amount: ''
     });
-    setImagePreview(null);
+    setImagePreview('');
     setShowForm(false);
+    setEditingDoc(null);
+  };
+
+  const handleEdit = (document) => {
+    setEditingDoc(document);
+    setFormData({
+      title: document.title,
+      description: document.description || '',
+      amount: document.amount.toString()
+    });
+    setImagePreview(document.imageUrl || '');
+    setShowForm(true);
   };
 
   const handleDelete = (id, title) => {
@@ -85,10 +101,20 @@ const Documents = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    // Handle null, undefined, or non-numeric values
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return '৳0.00';
+    }
+    
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'BDT'
+      }).format(amount);
+    } catch (error) {
+      // Fallback formatting if Intl fails
+      return `৳${parseFloat(amount).toFixed(2)}`;
+    }
   };
 
   const formatDate = (dateString) => {
@@ -127,7 +153,7 @@ const Documents = () => {
           <div className="card-header bg-primary text-white py-3">
             <h5 className="mb-0">
               <i className="bi bi-receipt me-2"></i>
-              Add New Bill
+              {editingDoc ? 'Edit Bill' : 'Add New Bill'}
             </h5>
           </div>
           <div className="card-body">
@@ -201,13 +227,22 @@ const Documents = () => {
                 <button 
                   type="button" 
                   className="btn btn-secondary"
-                  onClick={() => setShowForm(false)}
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingDoc(null);
+                    setFormData({
+                      title: '',
+                      description: '',
+                      amount: ''
+                    });
+                    setImagePreview('');
+                  }}
                 >
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
                   <i className="bi bi-save me-2"></i>
-                  Save Bill
+                  {editingDoc ? 'Update Bill' : 'Save Bill'}
                 </button>
               </div>
             </form>
@@ -277,40 +312,32 @@ const Documents = () => {
                         </span>
                       </td>
                       <td>
-                        {formatDate(document.date)}
+                        {formatDate(document.createdAt)}
                       </td>
                       <td>
-                        {document.createdBy}
+                        {document.createdBy?.name || 'Unknown'}
                       </td>
                       <td>
-                        {isAdmin ? (
-                          <button
-                            className="btn btn-outline-danger btn-sm"
-                            onClick={() => handleDelete(document.id, document.title)}
-                            title="Delete bill"
+                        <div className="btn-group btn-group-sm">
+                          <button 
+                            className="btn btn-outline-primary"
+                            onClick={() => handleEdit(document)}
                           >
-                            <i className="bi bi-trash"></i>
+                            <i className="bi bi-pencil"></i>
                           </button>
-                        ) : (
-                          <button
-                            className="btn btn-outline-secondary btn-sm"
-                            title="Only admins can delete"
-                            disabled
-                          >
-                            <i className="bi bi-trash"></i>
-                          </button>
-                        )}
+                          {isAdmin && (
+                            <button 
+                              className="btn btn-outline-danger"
+                              onClick={() => handleDelete(document.id, document.title)}
+                            >
+                              <i className="bi bi-trash"></i>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="table-light">
-                  <tr>
-                    <th colSpan="2">Total</th>
-                    <th className="text-danger">{formatCurrency(totalExtraCost)}</th>
-                    <th colSpan="3"></th>
-                  </tr>
-                </tfoot>
               </table>
             </div>
           )}
@@ -318,34 +345,31 @@ const Documents = () => {
       </div>
 
       {/* Image Modals */}
-      {sortedDocuments.map(document => document.imageUrl && (
-        <div 
-          key={document.id} 
-          className="modal fade" 
-          id={`imageModal-${document.id}`} 
-          tabIndex="-1"
-        >
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">{document.title}</h5>
-                <button type="button" className="btn-close" data-bs-dismiss="modal"></button>
-              </div>
-              <div className="modal-body text-center">
-                <img 
-                  src={document.imageUrl} 
-                  alt={document.title} 
-                  className="img-fluid"
-                />
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
-                  Close
-                </button>
+      {sortedDocuments.map(document => (
+        document.imageUrl && (
+          <div 
+            key={document.id} 
+            className="modal fade" 
+            id={`imageModal-${document.id}`} 
+            tabIndex="-1"
+          >
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">{document.title}</h5>
+                  <button type="button" className="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div className="modal-body text-center">
+                  <img 
+                    src={document.imageUrl} 
+                    alt={document.title} 
+                    className="img-fluid"
+                  />
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )
       ))}
     </div>
   );

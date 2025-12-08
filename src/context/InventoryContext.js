@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+import { migrateData } from '../utils/dataMigration';
 
 // Initial state
 const initialState = {
@@ -88,23 +89,84 @@ export const InventoryProvider = ({ children }) => {
     // Load initial state from localStorage if available
     try {
       const savedState = localStorage.getItem('inventoryState');
-      return savedState ? JSON.parse(savedState) : initialState;
+      if (savedState) {
+        const parsedState = JSON.parse(savedState);
+        
+        // Validate the structure of the loaded state
+        if (typeof parsedState === 'object' && parsedState !== null) {
+          // Migrate data to current version
+          const migratedState = migrateData('inventory', parsedState);
+          
+          // Ensure all required properties exist
+          const validatedState = {
+            products: Array.isArray(migratedState.products) ? migratedState.products : [],
+            purchases: Array.isArray(migratedState.purchases) ? migratedState.purchases : [],
+            sales: Array.isArray(migratedState.sales) ? migratedState.sales : [],
+            suppliers: Array.isArray(migratedState.suppliers) ? migratedState.suppliers : [],
+            customers: Array.isArray(migratedState.customers) ? migratedState.customers : []
+          };
+          
+          console.log('Inventory state loaded successfully from localStorage');
+          return validatedState;
+        }
+      }
+      return initialState;
     } catch (error) {
       console.error('Error loading inventory state from localStorage:', error);
+      console.warn('Using initial state due to loading error');
+      
+      // Attempt to clear corrupted data
+      try {
+        localStorage.removeItem('inventoryState');
+      } catch (clearError) {
+        console.error('Failed to clear corrupted inventory state:', clearError);
+      }
+      
       return initialState;
     }
   });
 
-  // Debounced save to localStorage
+  // Enhanced save function with retry mechanism
+  const saveToLocalStorage = useCallback((state) => {
+    try {
+      localStorage.setItem('inventoryState', JSON.stringify(state));
+    } catch (error) {
+      console.error('Error saving inventory state to localStorage:', error);
+      
+      // Handle quota exceeded error
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        console.warn('LocalStorage quota exceeded. Attempting to clear old data...');
+        
+        // Try to free up space by removing older entries
+        try {
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('inventory_') && key !== 'inventoryState') {
+              keysToRemove.push(key);
+            }
+          }
+          
+          keysToRemove.forEach(key => {
+            localStorage.removeItem(key);
+          });
+          
+          // Retry saving
+          localStorage.setItem('inventoryState', JSON.stringify(state));
+          console.log('Successfully saved after clearing old data');
+        } catch (retryError) {
+          console.error('Failed to save even after cleanup:', retryError);
+        }
+      }
+    }
+  }, []);
+
+  // Debounced save to localStorage with error handling
   const debouncedSave = useCallback(
     debounce((state) => {
-      try {
-        localStorage.setItem('inventoryState', JSON.stringify(state));
-      } catch (error) {
-        console.error('Error saving inventory state to localStorage:', error);
-      }
+      saveToLocalStorage(state);
     }, 1000),
-    []
+    [saveToLocalStorage]
   );
 
   // Save state to localStorage whenever it changes (debounced)

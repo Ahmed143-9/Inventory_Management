@@ -1,33 +1,62 @@
 // src/components/inventory/ProductsTable.js
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import useAdvancedSearch from '../../hooks/useAdvancedSearch';
 
-const ProductsTable = ({ products, onUpdate, onDelete }) => {
+const ProductsTable = ({ products, sales, onUpdate, onDelete }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [editingId, setEditingId] = useState(null);
   const [editedProduct, setEditedProduct] = useState({});
 
-  const categories = ['all', ...new Set(products.map(product => product.category))];
+  // Use advanced search with debouncing
+  const filteredProducts = useAdvancedSearch(
+    products,
+    searchTerm,
+    ['name', 'description', 'productCode', 'category'],
+    { category: filterCategory === 'all' ? null : filterCategory }
+  );
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Memoize categories to avoid recreating on every render
+  const categories = useMemo(() => {
+    const uniqueCategories = new Set(products.map(product => product.category));
+    return ['all', ...uniqueCategories].filter(Boolean); // Filter out undefined/null values
+  }, [products]);
 
-  // Quick quantity adjustment
+  // Create a map for O(1) product lookups
+  const productMap = useMemo(() => {
+    const map = new Map();
+    products.forEach(product => map.set(product.id, product));
+    return map;
+  }, [products]);
+
+  // Create a map for O(1) sales lookups by product ID
+  const salesByProductMap = useMemo(() => {
+    const map = new Map();
+    
+    // Group sales by product ID
+    sales.forEach(sale => {
+      const productId = sale.productId;
+      if (!map.has(productId)) {
+        map.set(productId, []);
+      }
+      map.get(productId).push(sale);
+    });
+    
+    return map;
+  }, [sales]);
+
+  // Quick quantity adjustment - optimized with product map
   const handleQuickQuantity = (productId, change) => {
-    const product = products.find(p => p.id === productId);
+    const product = productMap.get(productId);
     if (product) {
       const newQuantity = Math.max(0, product.quantity + change);
       onUpdate(productId, { quantity: newQuantity });
     }
   };
 
-  // Quick price adjustment
+  // Quick price adjustment - optimized with product map
   const handleQuickPrice = (productId, change) => {
-    const product = products.find(p => p.id === productId);
+    const product = productMap.get(productId);
     if (product) {
       const newPrice = Math.max(0, product.price + change);
       onUpdate(productId, { price: parseFloat(newPrice.toFixed(2)) });
@@ -55,7 +84,7 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
     setEditedProduct(prev => ({
       ...prev,
       [field]: field === 'quantity' ? parseInt(value) || 0 : 
-               field === 'price' ? parseFloat(value) || 0 : value
+               field === 'price' || field === 'cost' ? parseFloat(value) || 0 : value
     }));
   };
 
@@ -70,6 +99,50 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
     if (quantity < 10) return 'bg-warning';
     return 'bg-success';
   };
+
+  // Memoize summary statistics calculations
+  const summaryStats = useMemo(() => {
+    if (filteredProducts.length === 0) {
+      return {
+        totalProducts: 0,
+        totalValue: 0,
+        lowStock: 0,
+        outOfStock: 0,
+        avgPrice: 0,
+        totalItems: 0
+      };
+    }
+
+    let totalValue = 0;
+    let totalItems = 0;
+    let lowStock = 0;
+    let outOfStock = 0;
+    let totalPrice = 0;
+
+    // Single pass through filtered products for all calculations
+    filteredProducts.forEach(product => {
+      totalValue += (product.price || 0) * (product.quantity || 0);
+      totalItems += product.quantity || 0;
+      totalPrice += product.price || 0;
+      
+      if (product.quantity === 0) {
+        outOfStock++;
+      } else if (product.quantity < 10) {
+        lowStock++;
+      }
+    });
+
+    const avgPrice = filteredProducts.length > 0 ? totalPrice / filteredProducts.length : 0;
+
+    return {
+      totalProducts: filteredProducts.length,
+      totalValue,
+      lowStock,
+      outOfStock,
+      avgPrice,
+      totalItems
+    };
+  }, [filteredProducts]);
 
   return (
     <div className="products-table-container">
@@ -120,6 +193,8 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
               <th>Category</th>
               <th>Quantity</th>
               <th>Price</th>
+              <th>Cost</th>
+              <th>Profit Margin</th>
               <th>Status</th>
               <th>Total Value</th>
               <th>Actions</th>
@@ -240,7 +315,7 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
                 <td>
                   {editingId === product.id ? (
                     <div className="input-group input-group-sm">
-                      <span className="input-group-text">$</span>
+                      <span className="input-group-text">৳</span>
                       <input
                         type="number"
                         className="form-control"
@@ -254,7 +329,7 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
                     <div className="text-center">
                       {/* Main Value */}
                       <div className="fw-bold text-primary mb-1">
-                        ${product.price}
+                        ৳{product.price}
                       </div>
                       
                       {/* Compact Controls */}
@@ -263,7 +338,7 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
                           className="btn btn-outline-secondary btn-xs"
                           onClick={() => handleQuickPrice(product.id, -1)}
                           disabled={product.price <= 1}
-                          title="Decrease by $1"
+                          title="Decrease by ৳1"
                         >
                           <i className="bi bi-dash"></i>
                         </button>
@@ -272,7 +347,7 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
                           className="btn btn-outline-warning btn-xs"
                           onClick={() => handleQuickPrice(product.id, -5)}
                           disabled={product.price <= 5}
-                          title="Decrease by $5"
+                          title="Decrease by ৳5"
                         >
                           -5
                         </button>
@@ -280,7 +355,7 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
                         <button
                           className="btn btn-outline-info btn-xs"
                           onClick={() => handleQuickPrice(product.id, 5)}
-                          title="Increase by $5"
+                          title="Increase by ৳5"
                         >
                           +5
                         </button>
@@ -288,13 +363,68 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
                         <button
                           className="btn btn-outline-secondary btn-xs"
                           onClick={() => handleQuickPrice(product.id, 1)}
-                          title="Increase by $1"
+                          title="Increase by ৳1"
                         >
                           <i className="bi bi-plus"></i>
                         </button>
                       </div>
                     </div>
                   )}
+                </td>
+
+                {/* Cost */}
+                <td>
+                  {editingId === product.id ? (
+                    <div className="input-group input-group-sm">
+                      <span className="input-group-text">৳</span>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={editedProduct.cost || ''}
+                        onChange={(e) => handleChange('cost', e.target.value)}
+                        step="0.01"
+                        min="0"
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <div className="fw-bold text-secondary mb-1">
+                        ৳{product.cost || product.unitRate || 0}
+                      </div>
+                    </div>
+                  )}
+                </td>
+
+                {/* Profit Margin */}
+                <td>
+                  <div className="text-center">
+                    {(function() {
+                      // Get sales for this product
+                      const productSales = salesByProductMap.get(product.id) || [];
+                      
+                      // Calculate total sold quantity and revenue from actual sales
+                      const totalSold = productSales.reduce((sum, sale) => sum + (sale.quantitySold || 0), 0);
+                      
+                      // Extract cost and price with fallbacks
+                      const cost = product.cost || product.unitRate || 0;
+                      const price = product.price || product.sellRate || 0;
+                      
+                      // Calculate profit based on actual sales
+                      const totalRevenue = totalSold * price;
+                      const totalCost = totalSold * cost;
+                      const totalProfit = totalRevenue - totalCost;
+                      
+                      // Calculate profit margin percentage
+                      const profitMargin = totalSold > 0 && totalCost > 0 ? 
+                        (totalProfit / totalCost) * 100 : 0;
+                      
+                      return (
+                        <span className={`fw-bold ${totalProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                          {totalProfit >= 0 ? '+' : ''}{profitMargin.toFixed(1)}%
+                        </span>
+                      );
+                    })()}
+                  </div>
                 </td>
 
                 {/* Status */}
@@ -307,7 +437,7 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
                 {/* Total Value */}
                 <td>
                   <strong className="text-success">
-                    ${(product.quantity * product.price).toFixed(2)}
+                    ৳{(product.quantity * product.price).toFixed(2)}
                   </strong>
                 </td>
 
@@ -378,36 +508,36 @@ const ProductsTable = ({ products, onUpdate, onDelete }) => {
                 <div className="row text-center">
                   <div className="col-md-2">
                     <h6 className="text-muted">Total Products</h6>
-                    <h4 className="text-primary">{filteredProducts.length}</h4>
+                    <h4 className="text-primary">{summaryStats.totalProducts}</h4>
                   </div>
                   <div className="col-md-2">
                     <h6 className="text-muted">Total Value</h6>
                     <h4 className="text-success">
-                      ${filteredProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0).toLocaleString()}
+                      ৳{summaryStats.totalValue.toLocaleString()}
                     </h4>
                   </div>
                   <div className="col-md-2">
                     <h6 className="text-muted">Low Stock</h6>
                     <h4 className="text-warning">
-                      {filteredProducts.filter(p => p.quantity < 10 && p.quantity > 0).length}
+                      {summaryStats.lowStock}
                     </h4>
                   </div>
                   <div className="col-md-2">
                     <h6 className="text-muted">Out of Stock</h6>
                     <h4 className="text-danger">
-                      {filteredProducts.filter(p => p.quantity === 0).length}
+                      {summaryStats.outOfStock}
                     </h4>
                   </div>
                   <div className="col-md-2">
                     <h6 className="text-muted">Avg. Price</h6>
                     <h4 className="text-info">
-                      ${(filteredProducts.reduce((sum, p) => sum + p.price, 0) / filteredProducts.length).toFixed(2)}
+                      ৳{summaryStats.avgPrice.toFixed(2)}
                     </h4>
                   </div>
                   <div className="col-md-2">
                     <h6 className="text-muted">Total Items</h6>
                     <h4 className="text-purple">
-                      {filteredProducts.reduce((sum, p) => sum + p.quantity, 0).toLocaleString()}
+                      {summaryStats.totalItems.toLocaleString()}
                     </h4>
                   </div>
                 </div>

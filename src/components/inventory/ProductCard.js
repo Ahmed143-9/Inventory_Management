@@ -1,9 +1,41 @@
 // src/components/inventory/ProductCard.js
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
-const ProductCard = ({ product, onUpdate, onDelete }) => {
+const ProductCard = ({ product, sales, onUpdate, onDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedProduct, setEditedProduct] = useState(null);
+
+  // Calculate profit margin based on actual sales data
+  const profitInfo = useMemo(() => {
+    if (!sales || !Array.isArray(sales)) {
+      return { profitMargin: 0, totalSold: 0 };
+    }
+
+    // Filter sales for this specific product
+    const productSales = sales.filter(sale => sale.productId === product.id);
+    
+    // Calculate total sold quantity
+    const totalSold = productSales.reduce((sum, sale) => sum + (sale.quantitySold || 0), 0);
+    
+    // Extract cost and price with fallbacks
+    const cost = product.cost || product.unitRate || 0;
+    const price = product.price || product.sellRate || 0;
+    
+    // Calculate profit based on actual sales
+    const totalRevenue = totalSold * price;
+    const totalCost = totalSold * cost;
+    const totalProfit = totalRevenue - totalCost;
+    
+    // Calculate profit margin percentage
+    const profitMargin = totalSold > 0 && totalCost > 0 ? 
+      (totalProfit / totalCost) * 100 : 0;
+    
+    return {
+      profitMargin,
+      totalSold,
+      totalProfit
+    };
+  }, [product, sales]);
 
   console.log(`🎯 ProductCard ${product.id} rendering - Editing: ${isEditing}`);
 
@@ -15,6 +47,7 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
       description: product.description,
       quantity: product.quantity,
       price: product.price,
+      cost: product.cost || product.unitRate || 0,
       category: product.category
     });
     setIsEditing(true);
@@ -40,7 +73,8 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
     console.log(`📝 Product ${product.id} - Changing ${field} to:`, value);
     setEditedProduct(prev => ({
       ...prev,
-      [field]: value
+      [field]: field === 'quantity' || field === 'price' || field === 'cost' ? 
+        (field === 'quantity' ? parseInt(value) || 0 : parseFloat(value) || 0) : value
     }));
   };
 
@@ -55,6 +89,14 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
     console.log(`💰 Product ${product.id} - Quick price: ${change}`);
     const newPrice = Math.max(0, product.price + change);
     onUpdate(product.id, { price: parseFloat(newPrice.toFixed(2)) });
+  };
+
+  const handleQuickCost = (change) => {
+    console.log(`💵 Product ${product.id} - Quick cost: ${change}`);
+    const costField = product.cost !== undefined ? 'cost' : 'unitRate';
+    const currentCost = product[costField] || 0;
+    const newCost = Math.max(0, currentCost + change);
+    onUpdate(product.id, { [costField]: parseFloat(newCost.toFixed(2)) });
   };
 
   const handleCustomQuantity = () => {
@@ -73,6 +115,18 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
       const price = parseFloat(newPrice);
       if (!isNaN(price) && price >= 0) {
         onUpdate(product.id, { price: parseFloat(price.toFixed(2)) });
+      }
+    }
+  };
+
+  const handleCustomCost = () => {
+    const costField = product.cost !== undefined ? 'cost' : 'unitRate';
+    const currentCost = product[costField] || 0;
+    const newCost = prompt(`Set cost for ${product.name}:`, currentCost);
+    if (newCost !== null) {
+      const cost = parseFloat(newCost);
+      if (!isNaN(cost) && cost >= 0) {
+        onUpdate(product.id, { [costField]: parseFloat(cost.toFixed(2)) });
       }
     }
   };
@@ -121,7 +175,7 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
               />
             </div>
             <div className="row g-2 mb-2">
-              <div className="col-6">
+              <div className="col-4">
                 <label className="form-label small">Quantity</label>
                 <input
                   type="number"
@@ -131,7 +185,7 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
                   min="0"
                 />
               </div>
-              <div className="col-6">
+              <div className="col-4">
                 <label className="form-label small">Price</label>
                 <input
                   type="number"
@@ -139,6 +193,17 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
                   className="form-control form-control-sm"
                   value={editedProduct.price}
                   onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
+                  min="0"
+                />
+              </div>
+              <div className="col-4">
+                <label className="form-label small">Cost</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="form-control form-control-sm"
+                  value={editedProduct.cost}
+                  onChange={(e) => handleInputChange('cost', parseFloat(e.target.value) || 0)}
                   min="0"
                 />
               </div>
@@ -245,19 +310,19 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
                   className="btn btn-outline-secondary btn-sm"
                   onClick={() => handleQuickPrice(-1)}
                   disabled={product.price <= 1}
-                  title="Decrease by $1"
+                  title="Decrease by ৳1"
                 >
                   <i className="bi bi-dash"></i>
                 </button>
                 
                 <strong className="text-primary fs-5 mx-3 text-center min-width-60">
-                  ${product.price}
+                  ৳{product.price}
                 </strong>
                 
                 <button
                   className="btn btn-outline-secondary btn-sm"
                   onClick={() => handleQuickPrice(1)}
-                  title="Increase by $1"
+                  title="Increase by ৳1"
                 >
                   <i className="bi bi-plus"></i>
                 </button>
@@ -268,7 +333,7 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
                   className="btn btn-outline-warning btn-xs"
                   onClick={() => handleQuickPrice(-5)}
                   disabled={product.price <= 5}
-                  title="Decrease by $5"
+                  title="Decrease by ৳5"
                 >
                   -5
                 </button>
@@ -284,31 +349,78 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
                 <button
                   className="btn btn-outline-info btn-xs"
                   onClick={() => handleQuickPrice(5)}
-                  title="Increase by $5"
+                  title="Increase by ৳5"
                 >
                   +5
                 </button>
               </div>
             </div>
 
-            {/* Quick Actions */}
+            {/* Quick Cost Controls */}
             <div className="mb-3">
-              <small className="text-muted fw-semibold d-block mb-1">Quick Actions</small>
-              <div className="d-flex justify-content-center gap-1">
+              <small className="text-muted fw-semibold d-block mb-2">Cost</small>
+              
+              <div className="d-flex align-items-center justify-content-center mb-1">
                 <button
-                  className="btn btn-outline-primary btn-xs"
-                  onClick={() => handleQuickQuantity(10)}
-                  title="Add 10 to quantity"
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={() => handleQuickCost(-1)}
+                  disabled={(product.cost || product.unitRate || 0) <= 1}
+                  title="Decrease by ৳1"
                 >
-                  +10
+                  <i className="bi bi-dash"></i>
                 </button>
+                
+                <strong className="text-secondary fs-5 mx-3 text-center min-width-60">
+                  ৳{product.cost || product.unitRate || 0}
+                </strong>
+                
                 <button
-                  className="btn btn-outline-success btn-xs"
-                  onClick={() => handleQuickQuantity(25)}
-                  title="Add 25 to quantity"
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={() => handleQuickCost(1)}
+                  title="Increase by ৳1"
                 >
-                  +25
+                  <i className="bi bi-plus"></i>
                 </button>
+              </div>
+
+              <div className="d-flex justify-content-center align-items-center gap-2">
+                <button
+                  className="btn btn-outline-warning btn-xs"
+                  onClick={() => handleQuickCost(-5)}
+                  disabled={(product.cost || product.unitRate || 0) <= 5}
+                  title="Decrease by ৳5"
+                >
+                  -5
+                </button>
+                
+                <button
+                  className="btn btn-outline-secondary btn-xs"
+                  onClick={handleCustomCost}
+                  title="Set custom cost"
+                >
+                  <i className="bi bi-pencil-square"></i>
+                </button>
+                
+                <button
+                  className="btn btn-outline-info btn-xs"
+                  onClick={() => handleQuickCost(5)}
+                  title="Increase by ৳5"
+                >
+                  +5
+                </button>
+              </div>
+            </div>
+
+            {/* Profit Margin */}
+            <div className="mb-3 border-top pt-2">
+              <div className="text-center">
+                <small className="text-muted d-block">Profit Margin</small>
+                <strong className={profitInfo.totalProfit >= 0 ? 'text-success fs-5' : 'text-danger fs-5'}>
+                  {profitInfo.totalProfit >= 0 ? '+' : ''}{profitInfo.profitMargin.toFixed(1)}%
+                </strong>
+                <div className="small text-muted">
+                  {profitInfo.totalSold} sold
+                </div>
               </div>
             </div>
 
@@ -317,7 +429,7 @@ const ProductCard = ({ product, onUpdate, onDelete }) => {
               <div className="text-center">
                 <small className="text-muted d-block">Total Value</small>
                 <strong className="text-success fs-5">
-                  ${(product.quantity * product.price).toFixed(2)}
+                  ৳{(product.quantity * product.price).toFixed(2)}
                 </strong>
               </div>
             </div>

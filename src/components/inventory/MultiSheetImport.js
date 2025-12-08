@@ -12,6 +12,7 @@ const MultiSheetImport = () => {
     purchases: 0,
     sales: 0
   });
+  const [validationErrors, setValidationErrors] = useState([]);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -19,6 +20,7 @@ const MultiSheetImport = () => {
 
     setIsImporting(true);
     setMessage('Processing file...');
+    setValidationErrors([]);
 
     try {
       // Parse Excel file
@@ -29,6 +31,8 @@ const MultiSheetImport = () => {
         purchases: 0,
         sales: 0
       };
+      
+      let allErrors = [];
 
       // Process Product Master sheet (supporting various sheet names)
       const productSheetNames = ['Product Master', 'Products', 'Product_Master', 'Sheet1'];
@@ -42,20 +46,31 @@ const MultiSheetImport = () => {
       }
       
       if (productSheet) {
-        const { formattedData } = formatProductData(productSheet);
-        let validProducts = 0;
+        const { formattedData, errors: formatErrors } = formatProductData(productSheet);
+        allErrors = [...allErrors, ...formatErrors];
         
-        formattedData.forEach(product => {
+        let validProducts = 0;
+        let productErrors = [];
+        
+        formattedData.forEach((product, index) => {
           // Validate product data
-          const productErrors = validateProduct(product);
-          if (productErrors.length === 0) {
+          const errors = validateProduct(product);
+          if (errors.length === 0) {
             addProduct(product);
             validProducts++;
+          } else {
+            productErrors.push({
+              type: 'Product',
+              row: index + 2,
+              name: product.productName || 'Unknown',
+              errors
+            });
           }
         });
         
+        allErrors = [...allErrors, ...productErrors];
         results.products = validProducts;
-        setMessage(`Imported ${validProducts} products successfully!`);
+        setMessage(`Processed ${validProducts} valid products!`);
       }
 
       // Process Purchase Record sheet (supporting various sheet names)
@@ -73,20 +88,31 @@ const MultiSheetImport = () => {
       }
       
       if (purchaseSheet) {
-        const { formattedData } = formatPurchaseData(purchaseSheet);
-        let validPurchases = 0;
+        const { formattedData, errors: formatErrors } = formatPurchaseData(purchaseSheet);
+        allErrors = [...allErrors, ...formatErrors];
         
-        formattedData.forEach(purchase => {
+        let validPurchases = 0;
+        let purchaseErrors = [];
+        
+        formattedData.forEach((purchase, index) => {
           // Validate purchase data
-          const purchaseErrors = validatePurchase(purchase);
-          if (purchaseErrors.length === 0) {
+          const errors = validatePurchase(purchase);
+          if (errors.length === 0) {
             addPurchase(purchase);
             validPurchases++;
+          } else {
+            purchaseErrors.push({
+              type: 'Purchase',
+              row: index + 2,
+              name: purchase.productName || purchase.invoiceNo || 'Unknown',
+              errors
+            });
           }
         });
         
+        allErrors = [...allErrors, ...purchaseErrors];
         results.purchases = validPurchases;
-        setMessage(prev => prev + ` Imported ${validPurchases} purchases.`);
+        setMessage(prev => prev + ` Processed ${validPurchases} valid purchases.`);
       }
 
       // Process Sales Record sheet (supporting various sheet names)
@@ -110,29 +136,45 @@ const MultiSheetImport = () => {
         );
         
         if (validSalesRows.length > 0) {
-          const { formattedData } = formatSalesData(validSalesRows);
-          let validSales = 0;
+          const { formattedData, errors: formatErrors } = formatSalesData(validSalesRows);
+          allErrors = [...allErrors, ...formatErrors];
           
-          formattedData.forEach(sale => {
+          let validSales = 0;
+          let salesErrors = [];
+          
+          formattedData.forEach((sale, index) => {
             // Validate sale data
-            const saleErrors = validateSale(sale);
-            if (saleErrors.length === 0) {
+            const errors = validateSale(sale);
+            if (errors.length === 0) {
               addSale(sale);
               validSales++;
+            } else {
+              salesErrors.push({
+                type: 'Sale',
+                row: index + 2,
+                name: sale.productName || sale.customerName || sale.invoiceNo || 'Unknown',
+                errors
+              });
             }
           });
           
+          allErrors = [...allErrors, ...salesErrors];
           results.sales = validSales;
-          setMessage(prev => prev + ` Imported ${validSales} sales.`);
+          setMessage(prev => prev + ` Processed ${validSales} valid sales.`);
         }
       }
 
       setImportResults(results);
+      setValidationErrors(allErrors);
       
-      // Show success message
-      setTimeout(() => {
-        setMessage(`Import completed successfully! Products: ${results.products}, Purchases: ${results.purchases}, Sales: ${results.sales}`);
-      }, 1000);
+      // Show success/error message
+      if (allErrors.length > 0) {
+        setMessage(prev => prev + ` Found ${allErrors.length} validation errors. Please check the details below.`);
+      } else {
+        setTimeout(() => {
+          setMessage(`Import completed successfully! Products: ${results.products}, Purchases: ${results.purchases}, Sales: ${results.sales}`);
+        }, 1000);
+      }
       
     } catch (error) {
       console.error('Error processing file:', error);
@@ -149,6 +191,7 @@ const MultiSheetImport = () => {
       purchases: 0,
       sales: 0
     });
+    setValidationErrors([]);
   };
 
   return (
@@ -167,9 +210,62 @@ const MultiSheetImport = () => {
           </div>
 
           {message && (
-            <div className={`alert ${message.includes('Error') ? 'alert-danger' : 'alert-success'} d-flex align-items-center`}>
-              <i className={`bi ${message.includes('Error') ? 'bi-exclamation-triangle' : 'bi-check-circle'} me-2`}></i>
+            <div className={`alert ${message.includes('Error') || validationErrors.length > 0 ? 'alert-warning' : 'alert-success'} d-flex align-items-center`}>
+              <i className={`bi ${message.includes('Error') || validationErrors.length > 0 ? 'bi-exclamation-triangle' : 'bi-check-circle'} me-2`}></i>
               {message}
+            </div>
+          )}
+
+          {/* Validation Errors */}
+          {validationErrors.length > 0 && (
+            <div className="card shadow-sm border-0 mb-4">
+              <div className="card-header bg-warning text-white py-3">
+                <div className="d-flex align-items-center">
+                  <i className="bi bi-exclamation-triangle me-2"></i>
+                  <h5 className="mb-0">Validation Errors ({validationErrors.length})</h5>
+                </div>
+              </div>
+              <div className="card-body">
+                <div className="table-responsive">
+                  <table className="table table-bordered">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Type</th>
+                        <th>Row</th>
+                        <th>Name/ID</th>
+                        <th>Errors</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {validationErrors.map((error, index) => (
+                        <tr key={index}>
+                          <td>
+                            <span className={`badge ${
+                              error.type === 'Product' ? 'bg-primary' :
+                              error.type === 'Purchase' ? 'bg-success' : 'bg-info'
+                            }`}>
+                              {error.type}
+                            </span>
+                          </td>
+                          <td>{error.row}</td>
+                          <td>{error.name}</td>
+                          <td>
+                            <ul className="mb-0">
+                              {error.errors.map((err, errIndex) => (
+                                <li key={errIndex} className="text-danger">{err}</li>
+                              ))}
+                            </ul>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="alert alert-info mt-3">
+                  <i className="bi bi-info-circle me-2"></i>
+                  Please correct these errors in your Excel file and try importing again.
+                </div>
+              </div>
             </div>
           )}
 

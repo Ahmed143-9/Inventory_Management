@@ -408,8 +408,8 @@ Mouse,Wireless mouse,50,25.99,Electronics"
                           </td>
                           <td>
                             <div className="small">
-                              <div className="text-primary">Buy: ${product.unitRate || product.price || 0}</div>
-                              <div className="text-success">Sell: ${product.sellRate || 0}</div>
+                              <div className="text-primary">Buy: ৳{product.unitRate || product.price || 0}</div>
+                              <div className="text-success">Sell: ৳{product.sellRate || 0}</div>
                             </div>
                           </td>
                         </tr>

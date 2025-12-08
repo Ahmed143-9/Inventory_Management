@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import ProductsTable from './ProductsTable';
 import ProductCard from './ProductCard';
 
-const ProductList = ({ products, onUpdate, onDelete }) => {
+const ProductList = ({ products, sales, onUpdate, onDelete }) => {
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'card'
 
   return (
@@ -37,6 +37,7 @@ const ProductList = ({ products, onUpdate, onDelete }) => {
       {viewMode === 'table' ? (
         <ProductsTable 
           products={products} 
+          sales={sales}
           onUpdate={onUpdate}
           onDelete={onDelete}
         />
@@ -46,6 +47,7 @@ const ProductList = ({ products, onUpdate, onDelete }) => {
             <div key={product.id} className="col-12 col-sm-6 col-md-4 col-lg-3">
               <ProductCard 
                 product={product}
+                sales={sales}
                 onUpdate={onUpdate}
                 onDelete={onDelete}
               />

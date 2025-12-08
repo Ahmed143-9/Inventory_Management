@@ -5,88 +5,113 @@ import { useInventory } from '../context/InventoryContext';
 import { useDocument } from '../context/DocumentContext';
 
 const Dashboard = () => {
-  const { user } = useAuth();
-  const { products, purchases, sales } = useInventory();
-  const { totalExtraCost } = useDocument();
+  const { currentUser } = useAuth();
+  const { products } = useInventory();
+  const { documents } = useDocument();
 
-  // Calculate dashboard statistics with memoization
+  // Calculate total extra costs from documents
+  const totalExtraCost = useMemo(() => {
+    return documents.reduce((sum, doc) => sum + (doc.amount || 0), 0);
+  }, [documents]);
+
+  // Calculate dashboard stats
   const stats = useMemo(() => {
     const totalProducts = products.length;
-    const lowStockProducts = products.filter(product => product.quantity <= 5).length;
-    const outOfStockProducts = products.filter(product => product.quantity === 0).length;
+    const lowStockProducts = products.filter(p => {
+      const quantity = typeof p.quantity === 'number' ? p.quantity : 
+                      typeof p.currentStock === 'number' ? p.currentStock : 
+                      typeof p.stock === 'number' ? p.stock : 0;
+      const minStock = typeof p.minStock === 'number' ? p.minStock : 0;
+      return quantity <= minStock;
+    }).length;
     
-    // Calculate total inventory value
-    const totalInventoryValue = products.reduce((sum, product) => {
-      return sum + (product.quantity * product.unitRate);
-    }, 0);
+    const outOfStockProducts = products.filter(p => {
+      const quantity = typeof p.quantity === 'number' ? p.quantity : 
+                      typeof p.currentStock === 'number' ? p.currentStock : 
+                      typeof p.stock === 'number' ? p.stock : 0;
+      return quantity === 0;
+    }).length;
     
-    // Calculate potential profit (adjusted for extra costs)
-    const totalProductValue = products.reduce((sum, product) => {
-      return sum + (product.quantity * product.sellRate);
+    // Calculate potential profit (without extra costs)
+    const totalValue = products.reduce((sum, product) => {
+      // Extract price with multiple fallbacks
+      const price = typeof product.price === 'number' ? product.price :
+                   typeof product.sellRate === 'number' ? product.sellRate :
+                   typeof product.sellPrice === 'number' ? product.sellPrice : 0;
+                   
+      // Extract quantity with multiple fallbacks
+      const quantity = typeof product.quantity === 'number' ? product.quantity :
+                      typeof product.currentStock === 'number' ? product.currentStock :
+                      typeof product.stock === 'number' ? product.stock : 0;
+      
+      const value = price * quantity;
+      return sum + value;
     }, 0);
     
     const totalCost = products.reduce((sum, product) => {
-      return sum + (product.quantity * product.unitRate);
+      // Extract cost with multiple fallbacks
+      const cost = typeof product.cost === 'number' ? product.cost :
+                  typeof product.unitRate === 'number' ? product.unitRate :
+                  typeof product.buyPrice === 'number' ? product.buyPrice :
+                  typeof product.purchasePrice === 'number' ? product.purchasePrice :
+                  typeof product.price === 'number' ? product.price : 0;
+                  
+      // Extract quantity with multiple fallbacks
+      const quantity = typeof product.quantity === 'number' ? product.quantity :
+                      typeof product.currentStock === 'number' ? product.currentStock :
+                      typeof product.stock === 'number' ? product.stock : 0;
+      
+      const costValue = cost * quantity;
+      return sum + costValue;
     }, 0);
     
-    const potentialProfit = totalProductValue - totalCost - totalExtraCost;
-    
-    // Calculate recent transactions (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentPurchases = purchases.filter(purchase => 
-      new Date(purchase.purchaseDate) >= thirtyDaysAgo
-    ).length;
-    
-    const recentSales = sales.filter(sale => 
-      new Date(sale.saleDate) >= thirtyDaysAgo
-    ).length;
-    
+    const potentialProfit = totalValue - totalCost;
+
     return {
       totalProducts,
       lowStockProducts,
       outOfStockProducts,
-      totalInventoryValue,
-      potentialProfit,
-      recentPurchases,
-      recentSales
+      potentialProfit
     };
-  }, [products, purchases, sales, totalExtraCost]);
+  }, [products]);
 
-  // Get top 5 low stock products with memoization
+  // Low stock items
   const lowStockItems = useMemo(() => {
     return products
-      .filter(product => product.quantity <= 5 && product.quantity > 0)
-      .sort((a, b) => a.quantity - b.quantity)
+      .filter(product => (product.quantity || 0) <= (product.minStock || 0) && (product.quantity || 0) > 0)
       .slice(0, 5);
   }, [products]);
 
-  // Get out of stock products with memoization
+  // Out of stock items
   const outOfStockItems = useMemo(() => {
     return products
-      .filter(product => product.quantity === 0)
+      .filter(product => (product.quantity || 0) === 0)
       .slice(0, 5);
   }, [products]);
 
-  // Get high-profit products with memoization
-  const highProfitProducts = useMemo(() => {
+  // Top profitable products
+  const topProfitableProducts = useMemo(() => {
     return products
-      .map(product => ({
-        ...product,
-        profitMargin: product.unitRate > 0 ? 
-          ((product.sellRate - product.unitRate) / product.unitRate * 100) : 0
-      }))
-      .filter(product => product.profitMargin > 0)
-      .sort((a, b) => b.profitMargin - a.profitMargin)
+      .filter(product => (product.profitMargin || 0) > 0)
+      .sort((a, b) => (b.profitMargin || 0) - (a.profitMargin || 0))
       .slice(0, 5);
   }, [products]);
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    // Handle null, undefined, or non-numeric values
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return '৳0.00';
+    }
+    
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'BDT'
+      }).format(amount);
+    } catch (error) {
+      // Fallback formatting if Intl fails
+      return `৳${parseFloat(amount).toFixed(2)}`;
+    }
   };
 
   return (
@@ -97,7 +122,7 @@ const Dashboard = () => {
           Dashboard
         </h2>
         <div className="text-end">
-          <p className="mb-0">Welcome back, {user?.name || 'User'}!</p>
+          <p className="mb-0">Welcome back, {currentUser?.name || 'User'}!</p>
           <small className="text-muted">
             {new Date().toLocaleDateString('en-US', { 
               weekday: 'long', 
@@ -287,7 +312,7 @@ const Dashboard = () => {
                     <thead>
                       <tr>
                         <th>Product</th>
-                        <th>Status</th>
+                        <th>Category</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -298,7 +323,7 @@ const Dashboard = () => {
                             <small className="text-muted">{product.productCode}</small>
                           </td>
                           <td>
-                            <span className="badge bg-danger">Out of Stock</span>
+                            <span className="badge bg-danger">{product.category || 'Uncategorized'}</span>
                           </td>
                         </tr>
                       ))}
@@ -308,7 +333,7 @@ const Dashboard = () => {
               ) : (
                 <div className="text-center py-4">
                   <i className="bi bi-check-circle text-success" style={{fontSize: '2rem'}}></i>
-                  <p className="mt-2 mb-0">All products are in stock!</p>
+                  <p className="mt-2 mb-0">All items are in stock!</p>
                 </div>
               )}
               <div className="text-center mt-3">
@@ -320,17 +345,17 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* High Profit Products */}
+        {/* Top Profitable Products */}
         <div className="col-md-4">
           <div className="card shadow-sm border-0 h-100">
             <div className="card-header bg-white py-3">
               <h5 className="mb-0">
-                <i className="bi bi-graph-up text-success me-2"></i>
-                High Profit Products
+                <i className="bi bi-trophy text-warning me-2"></i>
+                Top Profitable Products
               </h5>
             </div>
             <div className="card-body">
-              {highProfitProducts.length > 0 ? (
+              {topProfitableProducts.length > 0 ? (
                 <div className="table-responsive">
                   <table className="table table-hover">
                     <thead>
@@ -340,13 +365,11 @@ const Dashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {highProfitProducts.map(product => (
+                      {topProfitableProducts.map(product => (
                         <tr key={product.id}>
                           <td>
                             <div className="fw-bold">{product.productName}</div>
-                            <small className="text-muted">
-                              Buy: ${product.unitRate.toFixed(2)} | Sell: ${product.sellRate.toFixed(2)}
-                            </small>
+                            <small className="text-muted">{product.productCode}</small>
                           </td>
                           <td>
                             <span className="badge bg-success">
@@ -361,55 +384,13 @@ const Dashboard = () => {
               ) : (
                 <div className="text-center py-4">
                   <i className="bi bi-info-circle text-info" style={{fontSize: '2rem'}}></i>
-                  <p className="mt-2 mb-0">No profit data available</p>
+                  <p className="mt-2 mb-0">No profitable products data available</p>
                 </div>
               )}
               <div className="text-center mt-3">
                 <Link to="/reports/profit-loss" className="btn btn-outline-primary btn-sm">
                   View Profit Report
                 </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity Summary */}
-      <div className="row mt-4">
-        <div className="col-12">
-          <div className="card shadow-sm border-0">
-            <div className="card-header bg-white py-3">
-              <h5 className="mb-0">
-                <i className="bi bi-activity me-2"></i>
-                Recent Activity
-              </h5>
-            </div>
-            <div className="card-body">
-              <div className="row text-center">
-                <div className="col-md-3 mb-3">
-                  <div className="p-3 bg-light rounded">
-                    <h4 className="text-primary">{stats.recentPurchases}</h4>
-                    <p className="mb-0">Recent Purchases</p>
-                  </div>
-                </div>
-                <div className="col-md-3 mb-3">
-                  <div className="p-3 bg-light rounded">
-                    <h4 className="text-success">{stats.recentSales}</h4>
-                    <p className="mb-0">Recent Sales</p>
-                  </div>
-                </div>
-                <div className="col-md-3 mb-3">
-                  <div className="p-3 bg-light rounded">
-                    <h4 className="text-info">{formatCurrency(stats.totalInventoryValue)}</h4>
-                    <p className="mb-0">Inventory Value</p>
-                  </div>
-                </div>
-                <div className="col-md-3 mb-3">
-                  <div className="p-3 bg-light rounded">
-                    <h4 className="text-warning">{formatCurrency(totalExtraCost)}</h4>
-                    <p className="mb-0">Extra Costs</p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

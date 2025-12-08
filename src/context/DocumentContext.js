@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+import { migrateData } from '../utils/dataMigration';
 
 // Initial state
 const initialState = {
@@ -55,23 +56,78 @@ export const DocumentProvider = ({ children }) => {
     // Load initial state from localStorage if available
     try {
       const savedState = localStorage.getItem('documentState');
-      return savedState ? JSON.parse(savedState) : initialState;
+      if (savedState) {
+        const parsedState = JSON.parse(savedState);
+        
+        // Validate the structure of the loaded state
+        if (typeof parsedState === 'object' && parsedState !== null) {
+          // Ensure all required properties exist
+          const validatedState = {
+            documents: Array.isArray(parsedState.documents) ? parsedState.documents : [],
+            totalExtraCost: typeof parsedState.totalExtraCost === 'number' ? parsedState.totalExtraCost : 0
+          };
+          
+          console.log('Document state loaded successfully from localStorage');
+          return validatedState;
+        }
+      }
+      return initialState;
     } catch (error) {
       console.error('Error loading document state from localStorage:', error);
+      console.warn('Using initial state due to loading error');
+      
+      // Attempt to clear corrupted data
+      try {
+        localStorage.removeItem('documentState');
+      } catch (clearError) {
+        console.error('Failed to clear corrupted document state:', clearError);
+      }
+      
       return initialState;
     }
   });
 
-  // Debounced save to localStorage
+  // Enhanced save function with retry mechanism
+  const saveToLocalStorage = useCallback((state) => {
+    try {
+      localStorage.setItem('documentState', JSON.stringify(state));
+    } catch (error) {
+      console.error('Error saving document state to localStorage:', error);
+      
+      // Handle quota exceeded error
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        console.warn('LocalStorage quota exceeded. Attempting to clear old data...');
+        
+        // Try to free up space by removing older entries
+        try {
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('document_') && key !== 'documentState') {
+              keysToRemove.push(key);
+            }
+          }
+          
+          keysToRemove.forEach(key => {
+            localStorage.removeItem(key);
+          });
+          
+          // Retry saving
+          localStorage.setItem('documentState', JSON.stringify(state));
+          console.log('Successfully saved after clearing old data');
+        } catch (retryError) {
+          console.error('Failed to save even after cleanup:', retryError);
+        }
+      }
+    }
+  }, []);
+
+  // Debounced save to localStorage with error handling
   const debouncedSave = useCallback(
     debounce((state) => {
-      try {
-        localStorage.setItem('documentState', JSON.stringify(state));
-      } catch (error) {
-        console.error('Error saving document state to localStorage:', error);
-      }
+      saveToLocalStorage(state);
     }, 1000),
-    []
+    [saveToLocalStorage]
   );
 
   // Save state to localStorage whenever it changes (debounced)

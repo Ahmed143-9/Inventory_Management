@@ -22,32 +22,58 @@ export const AuthProvider = ({ children }) => {
   // Load user and users data from localStorage on initial load
   useEffect(() => {
     // Load current user
-    const savedUser = localStorage.getItem('inventory_user');
-    if (savedUser) {
+    try {
+      const savedUser = localStorage.getItem('inventory_user');
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        
+        // Validate user structure
+        if (typeof parsedUser === 'object' && parsedUser !== null && parsedUser.id) {
+          console.log('User state loaded successfully from localStorage');
+          setCurrentUser(parsedUser);
+        }
+      }
+    } catch (err) {
+      console.error('Error parsing saved user:', err);
+      console.warn('Clearing corrupted user data');
+      
       try {
-        setCurrentUser(JSON.parse(savedUser));
-      } catch (err) {
-        console.error('Error parsing saved user:', err);
         localStorage.removeItem('inventory_user');
+      } catch (clearError) {
+        console.error('Failed to clear corrupted user data:', clearError);
       }
     }
     
     // Load users list
-    const savedUsers = localStorage.getItem('inventory_users');
-    if (savedUsers) {
-      try {
+    try {
+      const savedUsers = localStorage.getItem('inventory_users');
+      if (savedUsers) {
         const parsedUsers = JSON.parse(savedUsers);
-        // Ensure SUPER_ADMIN is always present
-        if (!parsedUsers.some(u => u.id === SUPER_ADMIN.id)) {
-          setUsers([SUPER_ADMIN, ...parsedUsers]);
-        } else {
-          setUsers(parsedUsers);
+        
+        // Validate users array structure
+        if (Array.isArray(parsedUsers)) {
+          // Ensure SUPER_ADMIN is always present
+          if (!parsedUsers.some(u => u.id === SUPER_ADMIN.id)) {
+            setUsers([SUPER_ADMIN, ...parsedUsers]);
+          } else {
+            setUsers(parsedUsers);
+          }
+          console.log('Users list loaded successfully from localStorage');
         }
-      } catch (err) {
-        console.error('Error parsing saved users:', err);
-        // Fallback to initial state with SUPER_ADMIN
-        setUsers([SUPER_ADMIN]);
       }
+    } catch (err) {
+      console.error('Error parsing saved users:', err);
+      console.warn('Using initial users state due to loading error');
+      
+      // Attempt to clear corrupted data
+      try {
+        localStorage.removeItem('inventory_users');
+      } catch (clearError) {
+        console.error('Failed to clear corrupted users data:', clearError);
+      }
+      
+      // Fallback to initial state with SUPER_ADMIN
+      setUsers([SUPER_ADMIN]);
     }
     
     setLoading(false);
@@ -55,18 +81,85 @@ export const AuthProvider = ({ children }) => {
 
   // Save user to localStorage when it changes
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('inventory_user', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('inventory_user');
+    try {
+      if (currentUser) {
+        localStorage.setItem('inventory_user', JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem('inventory_user');
+      }
+    } catch (error) {
+      console.error('Error saving user to localStorage:', error);
+      
+      // Handle quota exceeded error
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        console.warn('LocalStorage quota exceeded. Attempting to clear old data...');
+        
+        // Try to free up space
+        try {
+          // Remove older non-critical data
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && !['inventory_user', 'inventory_users', 'inventoryState', 'documentState'].includes(key)) {
+              keysToRemove.push(key);
+            }
+          }
+          
+          keysToRemove.forEach(key => {
+            localStorage.removeItem(key);
+          });
+          
+          // Retry saving
+          if (currentUser) {
+            localStorage.setItem('inventory_user', JSON.stringify(currentUser));
+          } else {
+            localStorage.removeItem('inventory_user');
+          }
+          console.log('Successfully saved user after clearing old data');
+        } catch (retryError) {
+          console.error('Failed to save user even after cleanup:', retryError);
+        }
+      }
     }
   }, [currentUser]);
   
   // Save users list to localStorage when it changes
   useEffect(() => {
-    // Don't save SUPER_ADMIN in the list since it's hardcoded
-    const usersToSave = users.filter(u => u.id !== SUPER_ADMIN.id);
-    localStorage.setItem('inventory_users', JSON.stringify(usersToSave));
+    try {
+      // Don't save SUPER_ADMIN in the list since it's hardcoded
+      const usersToSave = users.filter(u => u.id !== SUPER_ADMIN.id);
+      localStorage.setItem('inventory_users', JSON.stringify(usersToSave));
+    } catch (error) {
+      console.error('Error saving users list to localStorage:', error);
+      
+      // Handle quota exceeded error
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        console.warn('LocalStorage quota exceeded. Attempting to clear old data...');
+        
+        // Try to free up space
+        try {
+          // Remove older non-critical data
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && !['inventory_user', 'inventory_users', 'inventoryState', 'documentState'].includes(key)) {
+              keysToRemove.push(key);
+            }
+          }
+          
+          keysToRemove.forEach(key => {
+            localStorage.removeItem(key);
+          });
+          
+          // Retry saving
+          const usersToSave = users.filter(u => u.id !== SUPER_ADMIN.id);
+          localStorage.setItem('inventory_users', JSON.stringify(usersToSave));
+          console.log('Successfully saved users list after clearing old data');
+        } catch (retryError) {
+          console.error('Failed to save users list even after cleanup:', retryError);
+        }
+      }
+    }
   }, [users]);
 
   const login = async (email, password) => {
