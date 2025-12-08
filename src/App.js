@@ -20,6 +20,7 @@ import ViewProduct from './pages/ViewProduct';
 import ImportProductsPage from './pages/ImportProductsPage';
 import DataImportExport from './pages/DataImportExport';
 import ExcelImportPage from './pages/ExcelImportPage';
+import ComprehensiveDataManagement from './pages/ComprehensiveDataManagement';
 import AdminPanel from './pages/AdminPanel';
 import Reports from './pages/Reports';
 import StockReport from './pages/StockReport';
@@ -30,7 +31,6 @@ import UserProfile from './pages/UserProfile';
 import Settings from './pages/Settings';
 import Documents from './pages/Documents';
 import NotFound from './pages/NotFound';
-
 // Import CSS
 import './App.css';
 
@@ -71,6 +71,7 @@ function MainLayout() {
             <Route path="/products/import" element={<ImportProductsPage />} />
             <Route path="/data/import-export" element={<DataImportExport />} />
             <Route path="/excel-import" element={<ExcelImportPage />} />
+            <Route path="/data/comprehensive" element={<ComprehensiveDataManagement />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/reports/stock" element={<StockReport />} />
             <Route path="/reports/profit-loss" element={<ProfitLossReport />} />

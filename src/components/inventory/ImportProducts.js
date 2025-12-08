@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useInventory } from '../../context/InventoryContext';
 import * as XLSX from 'xlsx';
 import { parseExcelFile, formatProductData } from '../../utils/excelUtils';
+import { generateProductTemplate } from '../../utils/excelTemplates';
 
 const ImportProducts = () => {
   const { addProduct } = useInventory();
@@ -158,20 +159,32 @@ const ImportProducts = () => {
   };
 
   const downloadTemplate = () => {
-    const template = `name,description,quantity,price,category
+    try {
+      const blob = generateProductTemplate();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `product_template_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      // Fallback to CSV template
+      const template = `name,description,quantity,price,category
 Laptop,High-performance laptop,15,999.99,Electronics
 Mouse,Wireless mouse,50,25.99,Electronics
 Notebook,A4 size notebook,100,4.99,Stationery
 Desk Chair,Ergonomic office chair,8,199.99,Furniture
 Monitor,24-inch LED monitor,12,159.99,Electronics`;
-    
-    const blob = new Blob([template], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'product_import_template.csv';
-    link.click();
-    URL.revokeObjectURL(url);
+      
+      const blob = new Blob([template], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'product_import_template.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
   const resetImport = () => {

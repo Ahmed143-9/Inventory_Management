@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useInventory } from '../../context/InventoryContext';
 import * as XLSX from 'xlsx';
-import { parseExcelFile, formatProductData, formatPurchaseData, formatSalesData } from '../../utils/excelUtils';
+import { parseExcelFile, formatProductData, formatPurchaseData, formatSalesData, validateProduct, validatePurchase, validateSale } from '../../utils/excelUtils';
 
 const MultiSheetImport = () => {
-  const { addProduct, purchases, sales, updateProduct } = useInventory();
+  const { addProduct, addPurchase, addSale } = useInventory();
   const [message, setMessage] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [importResults, setImportResults] = useState({
@@ -30,39 +30,100 @@ const MultiSheetImport = () => {
         sales: 0
       };
 
-      // Process Product Master sheet
-      if (excelData['Product Master'] || excelData['Sheet1']) {
-        const productSheet = excelData['Product Master'] || excelData['Sheet1'];
-        const formattedProducts = formatProductData(productSheet);
+      // Process Product Master sheet (supporting various sheet names)
+      const productSheetNames = ['Product Master', 'Products', 'Product_Master', 'Sheet1'];
+      let productSheet = null;
+      
+      for (const sheetName of productSheetNames) {
+        if (excelData[sheetName]) {
+          productSheet = excelData[sheetName];
+          break;
+        }
+      }
+      
+      if (productSheet) {
+        const { formattedData } = formatProductData(productSheet);
+        let validProducts = 0;
         
-        formattedProducts.forEach(product => {
-          addProduct(product);
+        formattedData.forEach(product => {
+          // Validate product data
+          const productErrors = validateProduct(product);
+          if (productErrors.length === 0) {
+            addProduct(product);
+            validProducts++;
+          }
         });
         
-        results.products = formattedProducts.length;
-        setMessage(`Imported ${formattedProducts.length} products successfully!`);
+        results.products = validProducts;
+        setMessage(`Imported ${validProducts} products successfully!`);
       }
 
-      // Process Purchase Record sheet
-      if (excelData['Purchase Record']) {
-        const formattedPurchases = formatPurchaseData(excelData['Purchase Record']);
-        // In a real app, you would save these to state/context
-        results.purchases = formattedPurchases.length;
-        setMessage(prev => prev + ` Imported ${formattedPurchases.length} purchases.`);
+      // Process Purchase Record sheet (supporting various sheet names)
+      const purchaseSheetNames = ['Purchase Record', 'Purchases', 'Purchase_Record', 'Sheet1'];
+      let purchaseSheet = null;
+      
+      for (const sheetName of purchaseSheetNames) {
+        if (excelData[sheetName] && sheetName !== 'Sheet1') { // Prefer specifically named sheets
+          purchaseSheet = excelData[sheetName];
+          break;
+        } else if (excelData[sheetName] && !productSheet && sheetName === 'Sheet1') { // Only use Sheet1 if no products used it
+          purchaseSheet = excelData[sheetName];
+          break;
+        }
+      }
+      
+      if (purchaseSheet) {
+        const { formattedData } = formatPurchaseData(purchaseSheet);
+        let validPurchases = 0;
+        
+        formattedData.forEach(purchase => {
+          // Validate purchase data
+          const purchaseErrors = validatePurchase(purchase);
+          if (purchaseErrors.length === 0) {
+            addPurchase(purchase);
+            validPurchases++;
+          }
+        });
+        
+        results.purchases = validPurchases;
+        setMessage(prev => prev + ` Imported ${validPurchases} purchases.`);
       }
 
-      // Process Sales Record sheet
-      if (excelData['Sales Record'] || excelData['Sheet1']) {
-        const salesSheet = excelData['Sales Record'] || excelData['Sheet1'];
+      // Process Sales Record sheet (supporting various sheet names)
+      const salesSheetNames = ['Sales Record', 'Sales', 'Sales_Record', 'Sheet1'];
+      let salesSheet = null;
+      
+      for (const sheetName of salesSheetNames) {
+        if (excelData[sheetName] && sheetName !== 'Sheet1') { // Prefer specifically named sheets
+          salesSheet = excelData[sheetName];
+          break;
+        } else if (excelData[sheetName] && !productSheet && !purchaseSheet && sheetName === 'Sheet1') { // Only use Sheet1 if no products or purchases used it
+          salesSheet = excelData[sheetName];
+          break;
+        }
+      }
+      
+      if (salesSheet) {
         // Filter out empty rows
         const validSalesRows = salesSheet.filter(row => 
-          row['Product ID'] || row['Product Name'] || row['Customer Name']
+          row['Product ID'] || row['Product Name'] || row['Customer Name'] || row['Quantity Sold']
         );
         
         if (validSalesRows.length > 0) {
-          const formattedSales = formatSalesData(validSalesRows);
-          results.sales = formattedSales.length;
-          setMessage(prev => prev + ` Imported ${formattedSales.length} sales.`);
+          const { formattedData } = formatSalesData(validSalesRows);
+          let validSales = 0;
+          
+          formattedData.forEach(sale => {
+            // Validate sale data
+            const saleErrors = validateSale(sale);
+            if (saleErrors.length === 0) {
+              addSale(sale);
+              validSales++;
+            }
+          });
+          
+          results.sales = validSales;
+          setMessage(prev => prev + ` Imported ${validSales} sales.`);
         }
       }
 

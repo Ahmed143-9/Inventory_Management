@@ -44,7 +44,16 @@ const DataImportExport = () => {
                 <i className="bi bi-info-circle me-2"></i>
                 Upload your Excel files with multiple sheets to populate your inventory system.
               </div>
-            </div>
+              
+              <div className="mt-3">
+                <Link 
+                  to="/data/comprehensive" 
+                  className="btn btn-outline-primary"
+                >
+                  <i className="bi bi-database me-2"></i>
+                  Comprehensive Data Management
+                </Link>
+              </div>            </div>
           </div>
         </div>
 

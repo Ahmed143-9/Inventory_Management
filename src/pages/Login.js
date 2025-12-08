@@ -72,7 +72,7 @@ const Login = () => {
                   />
                 </div>
                 <h3 className="mb-1 text-primary">
-                  Hardware Inventory System
+                 Inventory System
                 </h3>
                 <p className="mb-0 text-muted small">Sign in to your account</p>
               </div>

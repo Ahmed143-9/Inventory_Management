@@ -13,6 +13,7 @@ This is a complete Inventory Management System built with React that allows you 
 - Role-Based Access Control (RBAC)
 - Document Management with Extra Cost Tracking
 - Responsive Design
+- Comprehensive Data Management
 
 ## Role-Based Access Control (RBAC)
 
@@ -41,6 +42,33 @@ The system now includes a Documents section where you can track extra costs that
 4. The system will automatically track the total extra costs
 5. These costs are subtracted from your gross profit to show net profit
 6. Detailed breakdown is available in the Profit & Loss report
+
+## Comprehensive Excel Data Management
+
+The system now includes enhanced Excel data management capabilities with dedicated templates for all data types:
+
+### New Features:
+1. **Comprehensive Data Management Page**: Unified interface for importing/exporting all data types
+2. **Enhanced Templates**: Dedicated templates for Product Master, Purchase Records, Sales Records, and Profit/Loss data
+3. **Multi-Sheet Support**: Import all data types from a single Excel file with multiple sheets
+4. **Template Downloads**: Download professionally formatted templates for each data type
+5. **Improved Processing**: Better handling of various Excel file formats and column variations
+
+### Supported Data Types:
+1. **Product Master**: Complete product inventory information
+2. **Purchase Records**: Incoming stock transactions with supplier details
+3. **Sales Records**: Outgoing stock transactions with customer details
+4. **Profit/Loss**: Financial analysis data with revenue and cost tracking
+
+### How to Use Comprehensive Data Management:
+1. Navigate to "Data Import/Export" in the sidebar
+2. Click on "Comprehensive Data Management"
+3. Choose from three tabs:
+   - **Import**: Upload Excel files with single or multiple sheets
+   - **Export**: Download current data in Excel format
+   - **Manage**: View data statistics and navigate to detailed views
+4. Download templates for any data type to ensure correct formatting
+5. Import your prepared Excel files and review the results
 
 ## Excel Import Functionality
 
@@ -79,13 +107,16 @@ The system supports importing data from Excel files with multiple sheets. This a
 
 ### How to Import Excel Data
 
-1. Navigate to the "Excel Import" section from the sidebar menu
-2. Click the "Choose File" button and select your Excel file
-3. The system will automatically process all sheets in the file:
+1. Navigate to the "Data Import/Export" section from the sidebar menu
+2. Choose between:
+   - **Traditional Import**: For single sheet imports
+   - **Comprehensive Management**: For advanced multi-sheet operations
+3. Click the "Choose File" button and select your Excel file
+4. The system will automatically process all sheets in the file:
    - Product Master data will be added to your product inventory
    - Purchase Record data will be processed for reporting
    - Sales Record data will be processed for reporting
-4. After import, you can view the results in the dashboard
+5. After import, you can view the results in the dashboard
 
 ### Dashboard Features
 
@@ -133,7 +164,8 @@ The dashboard provides key insights from your imported data:
 1. Open the application in your browser
 2. Use the sidebar navigation to access different features
 3. To import your existing data:
-   - Go to "Excel Import" in the sidebar
+   - Go to "Data Import/Export" in the sidebar
+   - Choose your preferred import method
    - Upload your Excel files
    - View results in the Dashboard
 4. Manage your inventory through the Products section
@@ -143,3 +175,4 @@ The dashboard provides key insights from your imported data:
 ## Support
 
 For any issues or questions about the Excel import functionality, please contact the development team.
+Detailed documentation is available in the COMPREHENSIVE_EXCEL_GUIDE.md file.

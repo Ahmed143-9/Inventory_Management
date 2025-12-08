@@ -1,6 +1,131 @@
 import * as XLSX from 'xlsx';
 
 /**
+ * Validate product data
+ * @param {Object} product - Product object to validate
+ * @returns {Array} Array of validation errors
+ */
+export const validateProduct = (product) => {
+  const errors = [];
+  
+  // Required fields
+  if (!product.productName || product.productName.trim() === '') {
+    errors.push('Product Name is required');
+  }
+  
+  if (!product.productCode || product.productCode.trim() === '') {
+    errors.push('Product Code is required');
+  }
+  
+  // Numeric validations
+  if (isNaN(product.unitRate) || product.unitRate < 0) {
+    errors.push('Unit Rate must be a valid positive number');
+  }
+  
+  if (isNaN(product.quantity) || product.quantity < 0) {
+    errors.push('Quantity must be a valid positive number');
+  }
+  
+  if (isNaN(product.sellRate) || product.sellRate < 0) {
+    errors.push('Sell Rate must be a valid positive number');
+  }
+  
+  return errors;
+};
+
+/**
+ * Validate purchase data
+ * @param {Object} purchase - Purchase object to validate
+ * @returns {Array} Array of validation errors
+ */
+export const validatePurchase = (purchase) => {
+  const errors = [];
+  
+  // Required fields
+  if (!purchase.productId || purchase.productId.trim() === '') {
+    errors.push('Product ID is required');
+  }
+  
+  if (!purchase.productName || purchase.productName.trim() === '') {
+    errors.push('Product Name is required');
+  }
+  
+  if (!purchase.invoiceNo || purchase.invoiceNo.trim() === '') {
+    errors.push('Invoice Number is required');
+  }
+  
+  if (!purchase.supplier || purchase.supplier.trim() === '') {
+    errors.push('Supplier is required');
+  }
+  
+  // Date validation
+  if (!purchase.date || isNaN(Date.parse(purchase.date))) {
+    errors.push('Valid date is required');
+  }
+  
+  // Numeric validations
+  if (isNaN(purchase.quantityPurchased) || purchase.quantityPurchased <= 0) {
+    errors.push('Quantity Purchased must be a valid positive number');
+  }
+  
+  if (isNaN(purchase.unitPrice) || purchase.unitPrice < 0) {
+    errors.push('Unit Price must be a valid positive number');
+  }
+  
+  if (isNaN(purchase.totalCost) || purchase.totalCost < 0) {
+    errors.push('Total Cost must be a valid positive number');
+  }
+  
+  return errors;
+};
+
+/**
+ * Validate sale data
+ * @param {Object} sale - Sale object to validate
+ * @returns {Array} Array of validation errors
+ */
+export const validateSale = (sale) => {
+  const errors = [];
+  
+  // Required fields
+  if (!sale.productId || sale.productId.trim() === '') {
+    errors.push('Product ID is required');
+  }
+  
+  if (!sale.productName || sale.productName.trim() === '') {
+    errors.push('Product Name is required');
+  }
+  
+  if (!sale.customerName || sale.customerName.trim() === '') {
+    errors.push('Customer Name is required');
+  }
+  
+  if (!sale.invoiceNo || sale.invoiceNo.trim() === '') {
+    errors.push('Invoice Number is required');
+  }
+  
+  // Date validation
+  if (!sale.date || isNaN(Date.parse(sale.date))) {
+    errors.push('Valid date is required');
+  }
+  
+  // Numeric validations
+  if (isNaN(sale.quantitySold) || sale.quantitySold <= 0) {
+    errors.push('Quantity Sold must be a valid positive number');
+  }
+  
+  if (isNaN(sale.unitPrice) || sale.unitPrice < 0) {
+    errors.push('Unit Price must be a valid positive number');
+  }
+  
+  if (isNaN(sale.totalSale) || sale.totalSale < 0) {
+    errors.push('Total Sale must be a valid positive number');
+  }
+  
+  return errors;
+};
+
+/**
  * Parse Excel file and extract data from different sheets
  * @param {File} file - Excel file to parse
  * @returns {Promise<Object>} Parsed data from all sheets
@@ -38,220 +163,296 @@ export const parseExcelFile = (file) => {
  * Convert Product Master sheet data to product objects
  * Handles various sheet formats including your uploaded files
  * @param {Array} rawData - Raw data from Product Master sheet
- * @returns {Array} Formatted product objects
+ * @returns {Object} Formatted product objects and any errors
  */
 export const formatProductData = (rawData) => {
-  return rawData.map((row, index) => {
-    // Skip empty rows
-    if ((!row['Product'] && !row['Product Name']) || 
-        (row['Product'] === undefined && row['Product Name'] === undefined)) {
+  const errors = [];
+  const formattedData = rawData.map((row, index) => {
+    try {
+      // Skip empty rows
+      if ((!row['Product'] && !row['Product Name']) || 
+          (row['Product'] === undefined && row['Product Name'] === undefined)) {
+        return null;
+      }
+      
+      // Handle different column names in various Excel formats
+      const productCode = row['Product Code'] || 
+                         row['D-LEVER-556---'] || 
+                         row['D-LEVER-5570---'] || 
+                         row['D-ROUND-9216---'] || 
+                         row['D-ATM R-5798XL---'] || 
+                         row['D-ENA G-0---'] || 
+                         row['D-UNION-9800---'] || 
+                         row['D-FEZA - ---'] || 
+                         row['D-EASY -0---'] || 
+                         row['D-DASHI-0---'] || 
+                         row['D-TAIWA-0---'] || 
+                         row['S-STAR -0---'] || 
+                         row['C-MARS -0---'] || 
+                         row['C-RAZ C-0---'] || 
+                         row['D-JB DR-0---'] || 
+                         row['D-CAMEL-0---'] || 
+                         row['H-ATM H-2618-A3---'] || 
+                         row['H-ATM H-510-008---'] || 
+                         row['H-ATM H-516-016---'] || 
+                         row['B-ATM S-0---'] || 
+                         row['H-ARS H-538---'] || 
+                         row['B-ATM B-221-56 ---'] || 
+                         row['B-ATM B-72-51---'] || 
+                         row['H-EASY -801-105---'] || 
+                         row['H-EASY -816-016---'] || 
+                         row['H-EASY -817-24 ---'] || 
+                         row['H-EASY -917-024---'] || 
+                         row['H-EASY - 301-10---'] || 
+                         row['H-EASY -301-105---'] || 
+                         row['H-EASY -916-016---'] || 
+                         row['H-ATM H-917-007---'] || 
+                         row['H-FSB H-81---'] || 
+                         row['H-ATM H-916-016---'] || 
+                         row['S-FSB S-0---'] || 
+                         row['S-BRASS-0---'] || 
+                         row['H-EASY -815-K04---'] || 
+                         row['H-FSB H-301-081---'] || 
+                         row['H-FSB H-301-081---'] || 
+                         row['H-FSB H-301-081---'] || 
+                         row['H-FSB H-301-081---'] || 
+                         row['H-FSB H-301-081---'] || 
+                         row['-DOORI-0---'] || 
+                         row['-BULLE-0---'] || 
+                         row['-FSB G-0---'] || 
+                         row['D-FSB G-0---'] || 
+                         row['D-BOSS -0---'] || 
+                         row['H-HEJBO-0---'] || 
+                         row['H-DOOR -0---'] || 
+                         row['N- SILV----'] || 
+                         row['N- BLAC----'] || 
+                         row['N-GOLDE----'] || 
+                         row['N-SILVE----'] || 
+                         row['N- BLAC----'] || 
+                         row['N-GOLDE----'] || 
+                         row['N- SILV----'] || 
+                         row['N-BLACK----'] || 
+                         row['N-GOLDE----'] || 
+                         row['0-BLACK----'] || 
+                         row['0-MALE ----'] || 
+                         row['P- PVC ----'] || 
+                         row['P- NALI----'] || 
+                         row['R-RING----'] || 
+                         row['C-SS CL----'] || 
+                         row['C-CHINA----'] || 
+                         row['C- SS C----'] || 
+                         row['C-LOCK ----'] || 
+                         row['H-HINGE----'] || 
+                         row['C-HINGE----'] || 
+                         row['C- SS C----'] || 
+                         row['C-SILVE----'] || 
+                         row['C-BLACK----'] || 
+                         row['C-GOLDE----'] || 
+                         '';
+                         
+      const productName = row['Product Name'] || row['Product'] || '';
+      const productType = row['Product'] || row['Product Name'] || '';
+      const size = row['Size'] || '';
+      const modelNo = row['Model No'] || 
+                     row['556'] || 
+                     row['5570'] || 
+                     row['9216'] || 
+                     row['5798XL'] || 
+                     row['9800'] || 
+                     row['5880'] || 
+                     row['801-105 (medium size)'] || 
+                     row['816-016 (medium size)'] || 
+                     row['817-24 (medium size)'] || 
+                     row['2618-A34'] || 
+                     row['510-008'] || 
+                     row['516-016'] || 
+                     row['221-56'] || 
+                     row['72-51'] || 
+                     row['538'] || 
+                     row['C949-1'] || 
+                     row['C929-1'] || 
+                     row['X7'] || 
+                     row['917-024'] || 
+                     row['301-105'] || 
+                     row['916-016'] || 
+                     row['917-007'] || 
+                     row['81'] || 
+                     row['815-K04'] || 
+                     row['301-081'] || 
+                     '';
+                     
+      const material = row['Material'] || '';
+      const color = row['Color'] || row['Golden 20p'] || '';
+      const category = row['Category'] || productType || 'Uncategorized';
+      const unitQty = parseInt(row['Unit Qty']) || 1;
+      const unit = row['Unit'] || 'PCS';
+      const unitRate = parseFloat(row['Unit Rate']) || parseFloat(row['Total Buy']) || 0;
+      const quantity = parseInt(row['Quantity']) || 0;
+      const sellRate = parseFloat(row['Sell Rate']) || parseFloat(row['Approximate Rate']) || 0;
+      const totalBuy = parseFloat(row['Total Buy']) || (unitRate * quantity) || 0;
+
+      return {
+        id: Date.now() + index, // Temporary ID, will be replaced by database
+        productCode: productCode,
+        product: productType,
+        productName: productName,
+        size: size,
+        brand: row['Brand'] || '',
+        grade: row['Grade'] || '',
+        material: material,
+        color: color,
+        modelNo: modelNo,
+        category: category,
+        unitQty: unitQty,
+        unit: unit,
+        unitRate: unitRate,
+        totalBuy: totalBuy,
+        quantity: quantity,
+        approximateRate: parseFloat(row['Approximate Rate']) || sellRate,
+        authenticationRate: parseFloat(row['Authentication Rate']) || 0,
+        sellRate: sellRate,
+        description: row['Description'] || '', // Add description field
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        // Calculate profit margin
+        profitMargin: unitRate > 0 ? ((sellRate - unitRate) / unitRate * 100) : 0
+      };
+    } catch (error) {
+      errors.push({
+        row: index + 2,
+        error: error.message,
+        data: row
+      });
       return null;
     }
-    
-    // Handle different column names in various Excel formats
-    const productCode = row['Product Code'] || 
-                       row['D-LEVER-556---'] || 
-                       row['D-LEVER-5570---'] || 
-                       row['D-ROUND-9216---'] || 
-                       row['D-ATM R-5798XL---'] || 
-                       row['D-ENA G-0---'] || 
-                       row['D-UNION-9800---'] || 
-                       row['D-FEZA - ---'] || 
-                       row['D-EASY -0---'] || 
-                       row['D-DASHI-0---'] || 
-                       row['D-TAIWA-0---'] || 
-                       row['S-STAR -0---'] || 
-                       row['C-MARS -0---'] || 
-                       row['C-RAZ C-0---'] || 
-                       row['D-JB DR-0---'] || 
-                       row['D-CAMEL-0---'] || 
-                       row['H-ATM H-2618-A3---'] || 
-                       row['H-ATM H-510-008---'] || 
-                       row['H-ATM H-516-016---'] || 
-                       row['B-ATM S-0---'] || 
-                       row['H-ARS H-538---'] || 
-                       row['B-ATM B-221-56 ---'] || 
-                       row['B-ATM B-72-51---'] || 
-                       row['H-EASY -801-105---'] || 
-                       row['H-EASY -816-016---'] || 
-                       row['H-EASY -817-24 ---'] || 
-                       row['H-EASY -917-024---'] || 
-                       row['H-EASY - 301-10---'] || 
-                       row['H-EASY -301-105---'] || 
-                       row['H-EASY -916-016---'] || 
-                       row['H-ATM H-917-007---'] || 
-                       row['H-FSB H-81---'] || 
-                       row['H-ATM H-916-016---'] || 
-                       row['S-FSB S-0---'] || 
-                       row['S-BRASS-0---'] || 
-                       row['H-EASY -815-K04---'] || 
-                       row['H-FSB H-301-081---'] || 
-                       row['H-FSB H-301-081---'] || 
-                       row['H-FSB H-301-081---'] || 
-                       row['H-FSB H-301-081---'] || 
-                       row['H-FSB H-301-081---'] || 
-                       row['-DOORI-0---'] || 
-                       row['-BULLE-0---'] || 
-                       row['-FSB G-0---'] || 
-                       row['D-FSB G-0---'] || 
-                       row['D-BOSS -0---'] || 
-                       row['H-HEJBO-0---'] || 
-                       row['H-DOOR -0---'] || 
-                       row['N- SILV----'] || 
-                       row['N- BLAC----'] || 
-                       row['N-GOLDE----'] || 
-                       row['N-SILVE----'] || 
-                       row['N- BLAC----'] || 
-                       row['N-GOLDE----'] || 
-                       row['N- SILV----'] || 
-                       row['N-BLACK----'] || 
-                       row['N-GOLDE----'] || 
-                       row['0-BLACK----'] || 
-                       row['0-MALE ----'] || 
-                       row['P- PVC ----'] || 
-                       row['P- NALI----'] || 
-                       row['R-RING----'] || 
-                       row['C-SS CL----'] || 
-                       row['C-CHINA----'] || 
-                       row['C- SS C----'] || 
-                       row['C-LOCK ----'] || 
-                       row['H-HINGE----'] || 
-                       row['C-HINGE----'] || 
-                       row['C- SS C----'] || 
-                       row['C-SILVE----'] || 
-                       row['C-BLACK----'] || 
-                       row['C-GOLDE----'] || 
-                       '';
-                       
-    const productName = row['Product Name'] || row['Product'] || '';
-    const productType = row['Product'] || row['Product Name'] || '';
-    const size = row['Size'] || '';
-    const modelNo = row['Model No'] || 
-                   row['556'] || 
-                   row['5570'] || 
-                   row['9216'] || 
-                   row['5798XL'] || 
-                   row['9800'] || 
-                   row['5880'] || 
-                   row['801-105 (medium size)'] || 
-                   row['816-016 (medium size)'] || 
-                   row['817-24 (medium size)'] || 
-                   row['2618-A34'] || 
-                   row['510-008'] || 
-                   row['516-016'] || 
-                   row['221-56'] || 
-                   row['72-51'] || 
-                   row['538'] || 
-                   row['C949-1'] || 
-                   row['C929-1'] || 
-                   row['X7'] || 
-                   row['917-024'] || 
-                   row['301-105'] || 
-                   row['916-016'] || 
-                   row['917-007'] || 
-                   row['81'] || 
-                   row['815-K04'] || 
-                   row['301-081'] || 
-                   '';
-                   
-    const material = row['Material'] || '';
-    const color = row['Color'] || row['Golden 20p'] || '';
-    const category = row['Category'] || productType || 'Uncategorized';
-    const unitQty = parseInt(row['Unit Qty']) || 1;
-    const unit = row['Unit'] || 'PCS';
-    const unitRate = parseFloat(row['Unit Rate']) || parseFloat(row['Total Buy']) || 0;
-    const quantity = parseInt(row['Quantity']) || 0;
-    const sellRate = parseFloat(row['Sell Rate']) || parseFloat(row['Approximate Rate']) || 0;
-    const totalBuy = parseFloat(row['Total Buy']) || (unitRate * quantity) || 0;
-
-    return {
-      id: Date.now() + index, // Temporary ID, will be replaced by database
-      productCode: productCode,
-      product: productType,
-      productName: productName,
-      size: size,
-      brand: row['Brand'] || '',
-      grade: row['Grade'] || '',
-      material: material,
-      color: color,
-      modelNo: modelNo,
-      category: category,
-      unitQty: unitQty,
-      unit: unit,
-      unitRate: unitRate,
-      totalBuy: totalBuy,
-      quantity: quantity,
-      approximateRate: parseFloat(row['Approximate Rate']) || sellRate,
-      authenticationRate: parseFloat(row['Authentication Rate']) || 0,
-      sellRate: sellRate,
-      description: row['Description'] || '', // Add description field
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      // Calculate profit margin
-      profitMargin: unitRate > 0 ? ((sellRate - unitRate) / unitRate * 100) : 0
-    };
   }).filter(item => item !== null);
+  
+  return { formattedData, errors };
 };
 
 /**
  * Convert Purchase Record sheet data to purchase objects
  * @param {Array} rawData - Raw data from Purchase Record sheet
- * @returns {Array} Formatted purchase objects
+ * @returns {Object} Formatted purchase objects and any errors
  */
 export const formatPurchaseData = (rawData) => {
-  return rawData.map((row, index) => {
-    // Skip empty rows
-    if ((!row['Product ID'] && !row['Product Name']) || 
-        (row['Product ID'] === undefined && row['Product Name'] === undefined)) {
+  const errors = [];
+  const formattedData = rawData.map((row, index) => {
+    try {
+      // Skip empty rows
+      if ((!row['Product ID'] && !row['Product Name']) || 
+          (row['Product ID'] === undefined && row['Product Name'] === undefined)) {
+        return null;
+      }
+      
+      // Extract date - handle different date formats
+      let purchaseDate = new Date();
+      if (row['Date']) {
+        // Try to parse the date, if it's already a Date object or valid date string
+        if (typeof row['Date'] === 'object' && row['Date'] instanceof Date) {
+          purchaseDate = row['Date'];
+        } else if (typeof row['Date'] === 'string' || typeof row['Date'] === 'number') {
+          // Try to parse as date
+          const parsedDate = new Date(row['Date']);
+          if (!isNaN(parsedDate.getTime())) {
+            purchaseDate = parsedDate;
+          }
+        }
+      }
+      
+      // Handle potential error values in numeric fields
+      const quantityPurchased = isNaN(parseFloat(row['Quantity Purchased'])) ? 0 : parseFloat(row['Quantity Purchased']);
+      const unitPrice = isNaN(parseFloat(row['Unit Price (Buy)'])) ? 0 : parseFloat(row['Unit Price (Buy)']);
+      const totalCost = isNaN(parseFloat(row['Total Purchase Cost'])) ? 0 : parseFloat(row['Total Purchase Cost']);
+      
+      return {
+        id: Date.now() + index, // Temporary ID
+        date: purchaseDate.toISOString(), // Standardized date format
+        invoiceNo: row['Invoice No'] || '',
+        productId: row['Product ID'] || '',
+        productName: row['Product Name'] || row['Product'] || '',
+        model: row['Model'] || '',
+        size: row['Size'] || '',
+        colorOrMaterial: row['Color or material'] || row['Color or Material'] || row['Color / Material'] || '',
+        quality: row['Quality'] || '',
+        quantityPurchased: quantityPurchased,
+        unitPrice: unitPrice,
+        totalCost: totalCost,
+        supplier: row['Supplier'] || '',
+        paymentStatus: row['Payment Status'] || 'Pending'
+      };
+    } catch (error) {
+      errors.push({
+        row: index + 2,
+        error: error.message,
+        data: row
+      });
       return null;
     }
-    
-    return {
-      id: Date.now() + index, // Temporary ID
-      invoiceNo: row['Invoice No'] || '',
-      productId: row['Product ID'] || '',
-      productName: row['Product Name'] || '',
-      model: row['Model'] || '',
-      size: row['Size'] || '',
-      colorOrMaterial: row['Color or material'] || '',
-      quality: row['Quality'] || '',
-      quantityPurchased: parseInt(row['Quantity Purchased']) || 0,
-      unitPrice: parseFloat(row['Unit Price (Buy)']) || 0,
-      totalCost: parseFloat(row['Total Purchase Cost']) || 0,
-      supplier: row['Supplier'] || '',
-      paymentStatus: row['Payment Status'] || 'Pending',
-      purchaseDate: row['Date'] ? new Date(row['Date']).toISOString() : new Date().toISOString()
-    };
   }).filter(item => item !== null);
+  
+  return { formattedData, errors };
 };
 
 /**
  * Convert Sales Record sheet data to sales objects
  * @param {Array} rawData - Raw data from Sales Record sheet
- * @returns {Array} Formatted sales objects
+ * @returns {Object} Formatted sales objects and any errors
  */
 export const formatSalesData = (rawData) => {
-  return rawData.map((row, index) => {
-    // Skip empty rows
-    if ((!row['Product ID'] && !row['Product Name']) || 
-        (row['Product ID'] === undefined && row['Product Name'] === undefined)) {
+  const errors = [];
+  const formattedData = rawData.map((row, index) => {
+    try {
+      // Skip empty rows
+      if ((!row['Product ID'] && !row['Product Name']) || 
+          (row['Product ID'] === undefined && row['Product Name'] === undefined)) {
+        return null;
+      }
+      
+      // Extract date - handle different date formats
+      let saleDate = new Date();
+      if (row['Date']) {
+        // Try to parse the date, if it's already a Date object or valid date string
+        if (typeof row['Date'] === 'object' && row['Date'] instanceof Date) {
+          saleDate = row['Date'];
+        } else if (typeof row['Date'] === 'string' || typeof row['Date'] === 'number') {
+          // Try to parse as date
+          const parsedDate = new Date(row['Date']);
+          if (!isNaN(parsedDate.getTime())) {
+            saleDate = parsedDate;
+          }
+        }
+      }
+      
+      // Handle potential error values in numeric fields
+      const quantitySold = isNaN(parseFloat(row['Quantity Sold'])) ? 0 : parseFloat(row['Quantity Sold']);
+      const unitPrice = isNaN(parseFloat(row['Unit Price (Sell)'])) ? 0 : parseFloat(row['Unit Price (Sell)']);
+      const totalSale = isNaN(parseFloat(row['Total Sale'])) ? 0 : parseFloat(row['Total Sale']);
+      
+      return {
+        id: Date.now() + index, // Temporary ID
+        date: saleDate.toISOString(), // Standardized date format
+        invoiceNo: row['Invoice No'] || '',
+        customerId: '', // Will need to be linked to customer
+        customerName: row['Customer Name'] || '',
+        productId: row['Product ID'] || '',
+        productName: row['Product Name'] || row['Product'] || '',
+        quantitySold: quantitySold,
+        unitPrice: unitPrice,
+        totalSale: totalSale,
+        paymentStatus: row['Payment Status'] || 'Pending'
+      };
+    } catch (error) {
+      errors.push({
+        row: index + 2,
+        error: error.message,
+        data: row
+      });
       return null;
     }
-    
-    return {
-      id: Date.now() + index, // Temporary ID
-      invoiceNo: row['Invoice No'] || '',
-      customerId: '', // Will need to be linked to customer
-      customerName: row['Customer Name'] || '',
-      productId: row['Product ID'] || '',
-      productName: row['Product Name'] || '',
-      quantitySold: parseInt(row['Quantity Sold']) || 0,
-      unitPrice: parseFloat(row['Unit Price (Sell)']) || 0,
-      totalSale: parseFloat(row['Total Sale']) || 0,
-      paymentStatus: row['Payment Status'] || 'Pending',
-      saleDate: row['Date'] ? new Date(row['Date']).toISOString() : new Date().toISOString()
-    };
   }).filter(item => item !== null);
+  
+  return { formattedData, errors };
 };
 
 /**
@@ -302,7 +503,7 @@ export const exportProductsToExcel = (products) => {
 export const exportPurchasesToExcel = (purchases) => {
   // Format data for Excel
   const excelData = purchases.map(purchase => ({
-    'Date': purchase.purchaseDate ? new Date(purchase.purchaseDate).toLocaleDateString() : '',
+    'Date': purchase.date ? new Date(purchase.date).toLocaleDateString() : '',
     'Invoice No': purchase.invoiceNo || '',
     'Product ID': purchase.productId || '',
     'Product Name': purchase.productName || '',
@@ -335,7 +536,7 @@ export const exportPurchasesToExcel = (purchases) => {
 export const exportSalesToExcel = (sales) => {
   // Format data for Excel
   const excelData = sales.map(sale => ({
-    'Date': sale.saleDate ? new Date(sale.saleDate).toLocaleDateString() : '',
+    'Date': sale.date ? new Date(sale.date).toLocaleDateString() : '',
     'Invoice No': sale.invoiceNo || '',
     'Customer Name': sale.customerName || '',
     'Product ID': sale.productId || '',

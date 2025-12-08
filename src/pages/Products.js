@@ -95,10 +95,7 @@ const Products = () => {
                 <i className="bi bi-plus-circle me-1"></i>
                 Add Product
               </Link>
-              <Link to="/products/import" className="btn btn-outline-primary btn-sm">
-                <i className="bi bi-upload me-1"></i>
-                Import
-              </Link>
+              {/* Import button removed as per requirement - only one centralized import location */}
             </div>
           </div>
         </div>

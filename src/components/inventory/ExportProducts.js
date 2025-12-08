@@ -1,6 +1,7 @@
 import React from 'react';
 import { useInventory } from '../../context/InventoryContext';
 import { exportProductsToExcel, exportPurchasesToExcel, exportSalesToExcel } from '../../utils/excelUtils';
+import { generateProductTemplate, generatePurchaseTemplate, generateSalesTemplate, generateProfitLossTemplate, generateMultiSheetTemplate } from '../../utils/excelTemplates';
 
 const ExportProducts = () => {
   const { products, purchases, sales } = useInventory();
@@ -56,6 +57,65 @@ const ExportProducts = () => {
     handleExportSales();
   };
 
+  const handleDownloadProductTemplate = () => {
+    try {
+      const blob = generateProductTemplate();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `product_template_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading product template:', error);
+      alert('Error downloading product template. Please try again.');
+    }
+  };
+
+  const handleDownloadPurchaseTemplate = () => {
+    try {
+      const blob = generatePurchaseTemplate();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `purchase_template_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading purchase template:', error);
+      alert('Error downloading purchase template. Please try again.');
+    }
+  };
+
+  const handleDownloadSalesTemplate = () => {
+    try {
+      const blob = generateSalesTemplate();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `sales_template_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading sales template:', error);
+      alert('Error downloading sales template. Please try again.');
+    }
+  };
+
+  const handleDownloadAllTemplates = () => {
+    try {
+      const blob = generateMultiSheetTemplate();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `inventory_templates_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading all templates:', error);
+      alert('Error downloading templates. Please try again.');
+    }
+  };
   return (
     <div className="export-products-container">
       <div className="row justify-content-center">
@@ -82,12 +142,19 @@ const ExportProducts = () => {
                   </p>
                   <div className="mt-3">
                     <button 
-                      className="btn btn-outline-primary w-100"
+                      className="btn btn-outline-primary w-100 mb-2"
                       onClick={handleExportProducts}
                       disabled={products.length === 0}
                     >
                       <i className="bi bi-file-earmark-spreadsheet me-2"></i>
                       Export {products.length} Products
+                    </button>
+                    <button 
+                      className="btn btn-outline-secondary w-100"
+                      onClick={handleDownloadProductTemplate}
+                    >
+                      <i className="bi bi-download me-2"></i>
+                      Download Template
                     </button>
                   </div>
                 </div>
@@ -104,12 +171,19 @@ const ExportProducts = () => {
                   </p>
                   <div className="mt-3">
                     <button 
-                      className="btn btn-outline-success w-100"
+                      className="btn btn-outline-success w-100 mb-2"
                       onClick={handleExportPurchases}
                       disabled={purchases.length === 0}
                     >
                       <i className="bi bi-file-earmark-spreadsheet me-2"></i>
                       Export {purchases.length} Purchases
+                    </button>
+                    <button 
+                      className="btn btn-outline-secondary w-100"
+                      onClick={handleDownloadPurchaseTemplate}
+                    >
+                      <i className="bi bi-download me-2"></i>
+                      Download Template
                     </button>
                   </div>
                 </div>
@@ -126,12 +200,19 @@ const ExportProducts = () => {
                   </p>
                   <div className="mt-3">
                     <button 
-                      className="btn btn-outline-warning w-100"
+                      className="btn btn-outline-warning w-100 mb-2"
                       onClick={handleExportSales}
                       disabled={sales.length === 0}
                     >
                       <i className="bi bi-file-earmark-spreadsheet me-2"></i>
                       Export {sales.length} Sales
+                    </button>
+                    <button 
+                      className="btn btn-outline-secondary w-100"
+                      onClick={handleDownloadSalesTemplate}
+                    >
+                      <i className="bi bi-download me-2"></i>
+                      Download Template
                     </button>
                   </div>
                 </div>
@@ -148,12 +229,19 @@ const ExportProducts = () => {
                   </p>
                   <div className="mt-3">
                     <button 
-                      className="btn btn-dark px-5"
+                      className="btn btn-dark px-5 mb-2"
                       onClick={handleExportAll}
                       disabled={products.length === 0 && purchases.length === 0 && sales.length === 0}
                     >
                       <i className="bi bi-file-earmark-spreadsheet me-2"></i>
                       Export All Data
+                    </button>
+                    <button 
+                      className="btn btn-outline-secondary px-5"
+                      onClick={handleDownloadAllTemplates}
+                    >
+                      <i className="bi bi-download me-2"></i>
+                      Download All Templates
                     </button>
                   </div>
                 </div>
