@@ -1,9 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useInventory } from '../context/InventoryContext';
+import { useDocument } from '../context/DocumentContext';
 
 const DailySalesReport = () => {
   const { sales, products } = useInventory();
+  const { addSalesBill } = useDocument();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [showSubmitSection, setShowSubmitSection] = useState(false);
 
   // Filter sales by selected date
   const dailySales = useMemo(() => {
@@ -78,6 +81,203 @@ const DailySalesReport = () => {
     }
   };
 
+  // Generate a bill copy for a sale
+  const generateBillCopy = (sale) => {
+    const product = products.find(p => p.id === sale.productId) || {};
+    return {
+      id: `${sale.id || Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      date: sale.date || new Date().toISOString(),
+      invoiceNo: sale.invoiceNo || 'N/A',
+      customerName: sale.customerName || 'N/A',
+      productName: sale.productName || product.productName || 'Unknown Product',
+      productId: sale.productId || 'N/A',
+      quantity: sale.quantitySold || 0,
+      unitPrice: sale.unitPrice || 0,
+      totalAmount: sale.totalSale || 0,
+      paymentStatus: sale.paymentStatus || 'Pending',
+      submittedAt: new Date().toISOString(),
+      type: 'sales_bill'
+    };
+  };
+
+  // Submit report and generate bill copies
+  const handleSubmitReport = () => {
+    if (dailySales.length === 0) {
+      alert('No sales data available for the selected date.');
+      return;
+    }
+
+    // Generate bill copies for all sales of the selected date
+    const newBills = dailySales.map(sale => {
+      const bill = generateBillCopy(sale);
+      // Store the bill in the document context
+      addSalesBill(bill);
+      return bill;
+    });
+    
+    alert(`Report submitted successfully! Generated and stored ${newBills.length} bill copies.`);
+    setShowSubmitSection(false);
+  };
+
+  // Print a specific bill
+  const printBill = (bill) => {
+    const printWindow = window.open('', '_blank');
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Bill Copy - ${bill.invoiceNo}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 20px; }
+          .bill-details { margin-bottom: 20px; }
+          .bill-details div { margin-bottom: 5px; }
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          .items-table th, .items-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          .items-table th { background-color: #f2f2f2; }
+          .total { font-weight: bold; font-size: 1.2em; }
+          @media print {
+            body { margin: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Hardware Inventory System</h1>
+          <h2>Bill Copy</h2>
+          <p>Date: ${new Date(bill.date).toLocaleDateString()}</p>
+        </div>
+        
+        <div class="bill-details">
+          <div><strong>Invoice No:</strong> ${bill.invoiceNo}</div>
+          <div><strong>Customer:</strong> ${bill.customerName}</div>
+          <div><strong>Product:</strong> ${bill.productName}</div>
+          <div><strong>Payment Status:</strong> ${bill.paymentStatus}</div>
+        </div>
+        
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Quantity</th>
+              <th>Unit Price</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>${bill.productName}</td>
+              <td>${bill.quantity}</td>
+              <td>${formatCurrency(bill.unitPrice)}</td>
+              <td>${formatCurrency(bill.totalAmount)}</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div class="total">
+          Total Amount: ${formatCurrency(bill.totalAmount)}
+        </div>
+        
+        <div style="margin-top: 40px;">
+          <p><strong>Thank you for your business!</strong></p>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  // Print all bills for the selected date
+  const printAllBills = () => {
+    if (dailySales.length === 0) {
+      alert('No sales data available for the selected date.');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    let billsHtml = '';
+    
+    dailySales.forEach((sale, index) => {
+      const bill = generateBillCopy(sale);
+      billsHtml += `
+        <div style="page-break-before: ${index > 0 ? 'always' : 'auto'};">
+          <div class="header">
+            <h1>Hardware Inventory System</h1>
+            <h2>Bill Copy</h2>
+            <p>Date: ${new Date(bill.date).toLocaleDateString()}</p>
+          </div>
+          
+          <div class="bill-details">
+            <div><strong>Invoice No:</strong> ${bill.invoiceNo}</div>
+            <div><strong>Customer:</strong> ${bill.customerName}</div>
+            <div><strong>Product:</strong> ${bill.productName}</div>
+            <div><strong>Payment Status:</strong> ${bill.paymentStatus}</div>
+          </div>
+          
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${bill.productName}</td>
+                <td>${bill.quantity}</td>
+                <td>${formatCurrency(bill.unitPrice)}</td>
+                <td>${formatCurrency(bill.totalAmount)}</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div class="total">
+            Total Amount: ${formatCurrency(bill.totalAmount)}
+          </div>
+          
+          <div style="margin-top: 40px;">
+            <p><strong>Thank you for your business!</strong></p>
+          </div>
+        </div>
+      `;
+    });
+    
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Daily Sales Bills</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 20px; }
+          .bill-details { margin-bottom: 20px; }
+          .bill-details div { margin-bottom: 5px; }
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          .items-table th, .items-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          .items-table th { background-color: #f2f2f2; }
+          .total { font-weight: bold; font-size: 1.2em; }
+          @media print {
+            body { margin: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <h1 style="text-align: center;">Daily Sales Bills - ${new Date(selectedDate).toLocaleDateString()}</h1>
+        ${billsHtml}
+      </body>
+      </html>
+    `;
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
   return (
     <div className="container-fluid py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -114,6 +314,69 @@ const DailySalesReport = () => {
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Submit Report Section */}
+      <div className="card shadow-sm border-0 mb-4">
+        <div className="card-header bg-white py-3">
+          <h5 className="mb-0">
+            <i className="bi bi-upload me-2"></i>
+            Submit Report & Generate Bills
+          </h5>
+        </div>
+        <div className="card-body">
+          <div className="d-flex justify-content-between align-items-center">
+            <div>
+              <p className="mb-1">Submit today's sales report to generate bill copies for all transactions.</p>
+              <small className="text-muted">Generated bills will be stored in the system for future profit measurement.</small>
+            </div>
+            <div className="d-flex gap-2">
+              <button 
+                className="btn btn-outline-primary"
+                onClick={() => setShowSubmitSection(!showSubmitSection)}
+              >
+                <i className="bi bi-plus-circle me-2"></i>
+                {showSubmitSection ? 'Cancel' : 'Submit Report'}
+              </button>
+              <button 
+                className="btn btn-success"
+                onClick={printAllBills}
+                disabled={dailySales.length === 0}
+              >
+                <i className="bi bi-printer me-2"></i>
+                Print All Bills
+              </button>
+            </div>
+          </div>
+          
+          {showSubmitSection && (
+            <div className="mt-3 p-3 bg-light rounded">
+              <h6 className="mb-3">Confirm Report Submission</h6>
+              <p>You are about to submit the sales report for {new Date(selectedDate).toLocaleDateString()} which contains {dailySales.length} transaction(s).</p>
+              <p>Upon submission:</p>
+              <ul>
+                <li>Bill copies will be automatically generated for each transaction</li>
+                <li>All generated bills will be stored in the system</li>
+                <li>Data will be available for future profit measurement and reporting</li>
+              </ul>
+              <div className="d-flex justify-content-end gap-2">
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => setShowSubmitSection(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="btn btn-primary"
+                  onClick={handleSubmitReport}
+                  disabled={dailySales.length === 0}
+                >
+                  Confirm Submission
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -217,6 +480,7 @@ const DailySalesReport = () => {
                     <th>Unit Price</th>
                     <th>Total</th>
                     <th>Status</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -237,6 +501,17 @@ const DailySalesReport = () => {
                           }`}>
                             {sale.paymentStatus || 'N/A'}
                           </span>
+                        </td>
+                        <td>
+                          <button 
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => {
+                              const bill = generateBillCopy(sale);
+                              printBill(bill);
+                            }}
+                          >
+                            <i className="bi bi-printer"></i> Print Bill
+                          </button>
                         </td>
                       </tr>
                     );

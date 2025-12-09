@@ -4,6 +4,7 @@ import { migrateData } from '../utils/dataMigration';
 // Initial state
 const initialState = {
   documents: [],
+  salesBills: [],
   totalExtraCost: 0
 };
 
@@ -12,7 +13,10 @@ const ACTIONS = {
   SET_DOCUMENTS: 'SET_DOCUMENTS',
   ADD_DOCUMENT: 'ADD_DOCUMENT',
   DELETE_DOCUMENT: 'DELETE_DOCUMENT',
-  UPDATE_TOTAL_COST: 'UPDATE_TOTAL_COST'
+  UPDATE_TOTAL_COST: 'UPDATE_TOTAL_COST',
+  SET_SALES_BILLS: 'SET_SALES_BILLS',
+  ADD_SALES_BILL: 'ADD_SALES_BILL',
+  DELETE_SALES_BILL: 'DELETE_SALES_BILL'
 };
 
 // Reducer
@@ -41,6 +45,24 @@ const documentReducer = (state, action) => {
         ...state,
         totalExtraCost: action.payload
       };
+      
+    case ACTIONS.SET_SALES_BILLS:
+      return {
+        ...state,
+        salesBills: action.payload
+      };
+    
+    case ACTIONS.ADD_SALES_BILL:
+      return {
+        ...state,
+        salesBills: [...state.salesBills, action.payload]
+      };
+    
+    case ACTIONS.DELETE_SALES_BILL:
+      return {
+        ...state,
+        salesBills: state.salesBills.filter(bill => bill.id !== action.payload)
+      };
     
     default:
       return state;
@@ -64,6 +86,7 @@ export const DocumentProvider = ({ children }) => {
           // Ensure all required properties exist
           const validatedState = {
             documents: Array.isArray(parsedState.documents) ? parsedState.documents : [],
+            salesBills: Array.isArray(parsedState.salesBills) ? parsedState.salesBills : [],
             totalExtraCost: typeof parsedState.totalExtraCost === 'number' ? parsedState.totalExtraCost : 0
           };
           
@@ -153,13 +176,28 @@ export const DocumentProvider = ({ children }) => {
   const deleteDocument = (id) => {
     dispatch({ type: ACTIONS.DELETE_DOCUMENT, payload: id });
   };
+  
+  const setSalesBills = (salesBills) => {
+    dispatch({ type: ACTIONS.SET_SALES_BILLS, payload: salesBills });
+  };
+
+  const addSalesBill = (salesBill) => {
+    dispatch({ type: ACTIONS.ADD_SALES_BILL, payload: salesBill });
+  };
+
+  const deleteSalesBill = (id) => {
+    dispatch({ type: ACTIONS.DELETE_SALES_BILL, payload: id });
+  };
 
   // Context value
   const value = {
     ...state,
     setDocuments,
     addDocument,
-    deleteDocument
+    deleteDocument,
+    setSalesBills,
+    addSalesBill,
+    deleteSalesBill
   };
 
   return (
