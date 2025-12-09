@@ -133,6 +133,18 @@ const Documents = () => {
     });
   };
 
+  // Reset form when switching tabs or closing
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingDoc(null);
+    setFormData({
+      title: '',
+      description: '',
+      amount: ''
+    });
+    setImagePreview('');
+  };
+
   return (
     <div className="container-fluid py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -147,7 +159,10 @@ const Documents = () => {
           </div>
           <button 
             className="btn btn-primary"
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              closeForm(); // Reset form before showing
+              setShowForm(true);
+            }}
           >
             <i className="bi bi-plus-circle me-2"></i>
             Add Bill
@@ -160,7 +175,10 @@ const Documents = () => {
         <li className="nav-item">
           <button 
             className={`nav-link ${activeTab === 'extra-costs' ? 'active' : ''}`}
-            onClick={() => setActiveTab('extra-costs')}
+            onClick={() => {
+              setActiveTab('extra-costs');
+              closeForm(); // Close form when switching tabs
+            }}
           >
             <i className="bi bi-cash me-1"></i>
             Extra Costs
@@ -169,7 +187,10 @@ const Documents = () => {
         <li className="nav-item">
           <button 
             className={`nav-link ${activeTab === 'sales-bills' ? 'active' : ''}`}
-            onClick={() => setActiveTab('sales-bills')}
+            onClick={() => {
+              setActiveTab('sales-bills');
+              closeForm(); // Close form when switching tabs
+            }}
           >
             <i className="bi bi-receipt me-1"></i>
             Sales Bills
@@ -257,16 +278,7 @@ const Documents = () => {
                 <button 
                   type="button" 
                   className="btn btn-secondary"
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditingDoc(null);
-                    setFormData({
-                      title: '',
-                      description: '',
-                      amount: ''
-                    });
-                    setImagePreview('');
-                  }}
+                  onClick={closeForm}
                 >
                   Cancel
                 </button>
@@ -299,7 +311,10 @@ const Documents = () => {
                 </p>
                 <button 
                   className="btn btn-primary"
-                  onClick={() => setShowForm(true)}
+                  onClick={() => {
+                    closeForm(); // Reset form before showing
+                    setShowForm(true);
+                  }}
                 >
                   <i className="bi bi-plus-circle me-2"></i>
                   Add First Bill

@@ -1,24 +1,50 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useInventory } from '../context/InventoryContext';
 import { useDocument } from '../context/DocumentContext';
+import { useNavigate } from 'react-router-dom';
 
 const DailySalesReport = () => {
-  const { sales, products } = useInventory();
+  const { sales, products, addSale } = useInventory();
   const { addSalesBill } = useDocument();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showSubmitSection, setShowSubmitSection] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
+  const [showBillInputForm, setShowBillInputForm] = useState(false);
+  const [billFormData, setBillFormData] = useState({
+    invoiceNo: '',
+    customerName: '',
+    customerPhone: '',
+    customerAddress: '',
+    productId: '',
+    productName: '',
+    quantity: 1,
+    unitPrice: 0,
+    discount: 0,
+    tax: 0,
+    paymentStatus: 'Paid',
+    paymentMethod: 'Cash',
+    remarks: ''
+  });
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [recentCustomers, setRecentCustomers] = useState([]);
+  const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
+  const [quickInputMode, setQuickInputMode] = useState(false);
+  const [quickInputText, setQuickInputText] = useState('');
+  const navigate = useNavigate();
+  
+  const productSearchRef = useRef(null);
+  const customerNameRef = useRef(null);
 
   // Filter sales by selected date
   const dailySales = useMemo(() => {
     return sales.filter(sale => {
       if (!sale.date) return false;
       
-      // Parse dates and normalize them to the same timezone
       const saleDate = new Date(sale.date);
       const selectedDateObj = new Date(selectedDate);
       
-      // Reset time portion for accurate date comparison
       saleDate.setHours(0, 0, 0, 0);
       selectedDateObj.setHours(0, 0, 0, 0);
       
@@ -35,38 +61,261 @@ const DailySalesReport = () => {
     }, { totalQuantity: 0, totalRevenue: 0 });
   }, [dailySales]);
 
-  // Group sales by product
-  const salesByProduct = useMemo(() => {
-    const productMap = {};
-    products.forEach(product => {
-      productMap[product.id || product.productId] = product;
-    });
-
-    const grouped = {};
-    dailySales.forEach(sale => {
-      const productId = sale.productId;
-      const product = productMap[productId] || {};
-      
-      if (!grouped[productId]) {
-        grouped[productId] = {
-          productCode: product.productCode || sale.productId,
-          productName: product.productName || sale.productName || 'Unknown Product',
-          totalQuantity: 0,
-          totalRevenue: 0,
-          sales: []
-        };
+  // Extract recent customers from sales
+  useEffect(() => {
+    const uniqueCustomers = [];
+    const seenCustomers = new Set();
+    
+    sales.slice().reverse().forEach(sale => {
+      if (sale.customerName && sale.customerName !== 'Walk-in Customer' && !seenCustomers.has(sale.customerName)) {
+        seenCustomers.add(sale.customerName);
+        uniqueCustomers.push({
+          name: sale.customerName,
+          phone: sale.customerPhone,
+          lastPurchase: sale.date
+        });
       }
-      
-      grouped[productId].totalQuantity += sale.quantitySold || 0;
-      grouped[productId].totalRevenue += sale.totalSale || 0;
-      grouped[productId].sales.push(sale);
+      if (uniqueCustomers.length >= 10) return;
     });
     
-    return Object.values(grouped);
-  }, [dailySales, products]);
+    setRecentCustomers(uniqueCustomers);
+  }, [sales]);
 
+  // Generate invoice number
+  const generateInvoiceNumber = () => {
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `INV-${year}${month}${day}-${random}`;
+  };
+
+  // Initialize form
+  useEffect(() => {
+    if (showBillInputForm) {
+      setBillFormData(prev => ({
+        ...prev,
+        invoiceNo: generateInvoiceNumber(),
+        date: selectedDate
+      }));
+    }
+  }, [showBillInputForm, selectedDate]);
+
+  // Auto-complete for product search
+  useEffect(() => {
+    if (productSearchTerm.trim()) {
+      const filtered = products.filter(product =>
+        product.productName?.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+        product.productCode?.toLowerCase().includes(productSearchTerm.toLowerCase())
+      ).slice(0, 8);
+      setFilteredProducts(filtered);
+      setShowProductSuggestions(true);
+    } else {
+      setFilteredProducts([]);
+      setShowProductSuggestions(false);
+    }
+  }, [productSearchTerm, products]);
+
+  // Handle product selection from suggestions
+  const handleProductSelect = (product) => {
+    setBillFormData({
+      ...billFormData,
+      productId: product.id,
+      productName: product.productName,
+      productCode: product.productCode,
+      unitPrice: product.sellingPrice || 0
+    });
+    setProductSearchTerm(product.productName);
+    setShowProductSuggestions(false);
+  };
+
+  // Handle customer selection from suggestions
+  const handleCustomerSelect = (customer) => {
+    setBillFormData({
+      ...billFormData,
+      customerName: customer.name,
+      customerPhone: customer.phone || ''
+    });
+    setShowCustomerSuggestions(false);
+  };
+
+  // Quick input parsing function
+  const parseQuickInput = (input) => {
+    // Example input: "john 01712345678 hammer 2 500 cash"
+    const parts = input.trim().split(/\s+/);
+    const result = {
+      customerName: '',
+      customerPhone: '',
+      productName: '',
+      quantity: 1,
+      unitPrice: 0,
+      paymentMethod: 'Cash'
+    };
+
+    let i = 0;
+    
+    // Parse customer name (first word)
+    if (parts.length > i) {
+      result.customerName = parts[i];
+      i++;
+    }
+
+    // Check if second part is phone number
+    if (parts.length > i && /^01[3-9]\d{8}$/.test(parts[i])) {
+      result.customerPhone = parts[i];
+      i++;
+    }
+
+    // Product name (could be multiple words)
+    const productWords = [];
+    while (i < parts.length && isNaN(parts[i])) {
+      productWords.push(parts[i]);
+      i++;
+    }
+    result.productName = productWords.join(' ');
+
+    // Quantity
+    if (parts.length > i && !isNaN(parts[i])) {
+      result.quantity = parseInt(parts[i]);
+      i++;
+    }
+
+    // Unit price
+    if (parts.length > i && !isNaN(parts[i])) {
+      result.unitPrice = parseFloat(parts[i]);
+      i++;
+    }
+
+    // Payment method
+    if (parts.length > i) {
+      const method = parts[i].toLowerCase();
+      if (['cash', 'card', 'bkash', 'nagad', 'bank'].includes(method)) {
+        result.paymentMethod = method.charAt(0).toUpperCase() + method.slice(1);
+      }
+    }
+
+    return result;
+  };
+
+  // Handle quick input
+  const handleQuickInputSubmit = () => {
+    if (!quickInputText.trim()) return;
+
+    const parsed = parseQuickInput(quickInputText);
+    
+    // Find product by name
+    const foundProduct = products.find(p => 
+      p.productName.toLowerCase().includes(parsed.productName.toLowerCase()) ||
+      p.productCode.toLowerCase().includes(parsed.productName.toLowerCase())
+    );
+
+    if (!foundProduct) {
+      alert(`Product "${parsed.productName}" not found. Please use full form.`);
+      return;
+    }
+
+    // Set form data
+    setBillFormData({
+      invoiceNo: generateInvoiceNumber(),
+      customerName: parsed.customerName || 'Walk-in Customer',
+      customerPhone: parsed.customerPhone || '',
+      customerAddress: '',
+      productId: foundProduct.id,
+      productName: foundProduct.productName,
+      productCode: foundProduct.productCode,
+      quantity: parsed.quantity || 1,
+      unitPrice: parsed.unitPrice || foundProduct.sellingPrice || 0,
+      discount: 0,
+      tax: 0,
+      paymentStatus: 'Paid',
+      paymentMethod: parsed.paymentMethod || 'Cash',
+      remarks: 'Quick Input'
+    });
+
+    setQuickInputText('');
+    setQuickInputMode(false);
+    alert('Data loaded! Please review and submit.');
+  };
+
+  // Calculate totals
+  const calculateTotals = () => {
+    const subtotal = billFormData.quantity * billFormData.unitPrice;
+    const discountAmount = subtotal * (billFormData.discount / 100);
+    const taxAmount = subtotal * (billFormData.tax / 100);
+    const total = subtotal - discountAmount + taxAmount;
+    
+    return {
+      subtotal,
+      discountAmount,
+      taxAmount,
+      total
+    };
+  };
+
+  // Handle form submit
+  const handleBillSubmit = (e) => {
+    e.preventDefault();
+    
+    if (!billFormData.productId) {
+      alert('Please select a product');
+      return;
+    }
+
+    const totals = calculateTotals();
+    
+    const newSale = {
+      id: Date.now().toString(),
+      date: selectedDate,
+      invoiceNo: billFormData.invoiceNo,
+      customerName: billFormData.customerName || 'Walk-in Customer',
+      customerPhone: billFormData.customerPhone,
+      customerAddress: billFormData.customerAddress,
+      productId: billFormData.productId,
+      productName: billFormData.productName,
+      quantitySold: parseInt(billFormData.quantity),
+      unitPrice: parseFloat(billFormData.unitPrice),
+      totalSale: totals.total,
+      discount: parseFloat(billFormData.discount),
+      tax: parseFloat(billFormData.tax),
+      paymentStatus: billFormData.paymentStatus,
+      paymentMethod: billFormData.paymentMethod,
+      remarks: billFormData.remarks,
+      createdAt: new Date().toISOString()
+    };
+
+    // Add to sales
+    addSale(newSale);
+
+    // Generate and save bill copy
+    const billCopy = generateBillCopy(newSale);
+
+    addSalesBill(billCopy);
+
+    // Reset form
+    setBillFormData({
+      invoiceNo: generateInvoiceNumber(),
+      customerName: '',
+      customerPhone: '',
+      customerAddress: '',
+      productId: '',
+      productName: '',
+      quantity: 1,
+      unitPrice: 0,
+      discount: 0,
+      tax: 0,
+      paymentStatus: 'Paid',
+      paymentMethod: 'Cash',
+      remarks: ''
+    });
+    
+    setProductSearchTerm('');
+    setShowBillInputForm(false);
+    alert('Bill added successfully!');
+  };
+
+  // Format currency
   const formatCurrency = (amount) => {
-    // Handle null, undefined, or non-numeric values
     if (amount === null || amount === undefined || isNaN(amount)) {
       return '৳0.00';
     }
@@ -77,7 +326,6 @@ const DailySalesReport = () => {
         currency: 'BDT'
       }).format(amount);
     } catch (error) {
-      // Fallback formatting if Intl fails
       return `৳${parseFloat(amount).toFixed(2)}`;
     }
   };
@@ -546,22 +794,17 @@ const DailySalesReport = () => {
   // Print individual bill
   const printBill = (sale) => {
     const bill = generateBillCopy(sale);
-    setSelectedBill(bill);
     
-    // Delay to ensure state update before printing
+    const printWindow = window.open('', '_blank');
+    const printContent = generateBillHTML(bill);
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
     setTimeout(() => {
-      const printWindow = window.open('', '_blank');
-      const printContent = generateBillHTML(bill);
-      
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      
-      // Auto print after a short delay
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 500);
-    }, 100);
+      printWindow.print();
+      printWindow.close();
+    }, 500);
   };
 
   // Print all bills for selected date
@@ -618,114 +861,117 @@ const DailySalesReport = () => {
     setShowSubmitSection(false);
   };
 
-  // Preview Bill Modal
-  const BillPreviewModal = ({ bill, onClose }) => {
-    if (!bill) return null;
+  // Quick Input Modal
+  const QuickInputModal = () => {
+    const examples = [
+      "john 01712345678 hammer 2 500 cash",
+      "smith nail 5 100",
+      "alex screwdriver 1 250 bkash",
+      "walkin paint 3 1200"
+    ];
 
     return (
       <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
         <div className="modal-dialog modal-lg modal-dialog-centered">
           <div className="modal-content">
             <div className="modal-header">
-              <h5 className="modal-title">Bill Preview - {bill.invoiceNo}</h5>
-              <button type="button" className="btn-close" onClick={onClose}></button>
+              <h5 className="modal-title">Quick Bill Input</h5>
+              <button 
+                type="button" 
+                className="btn-close" 
+                onClick={() => setQuickInputMode(false)}
+              ></button>
             </div>
             <div className="modal-body">
-              <div className="d-flex justify-content-between mb-4">
-                <div>
-                  <h6 className="mb-1">Customer: {bill.customerName}</h6>
-                  <small className="text-muted">Date: {new Date(bill.date).toLocaleDateString()}</small>
+              <div className="alert alert-info">
+                <i className="bi bi-lightbulb me-2"></i>
+                <strong>Type everything in one line!</strong> The system will automatically parse customer, product, quantity, price, and payment method.
+              </div>
+
+              <div className="mb-4">
+                <label className="form-label fw-bold">Enter Bill Details</label>
+                <div className="input-group">
+                  <input
+                    type="text"
+                    className="form-control form-control-lg"
+                    placeholder="Example: john 01712345678 hammer 2 500 cash"
+                    value={quickInputText}
+                    onChange={(e) => setQuickInputText(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleQuickInputSubmit()}
+                    autoFocus
+                  />
+                  <button 
+                    className="btn btn-primary btn-lg"
+                    onClick={handleQuickInputSubmit}
+                    disabled={!quickInputText.trim()}
+                  >
+                    <i className="bi bi-arrow-right"></i>
+                  </button>
                 </div>
-                <div className="text-end">
-                  <span className={`badge ${bill.paymentStatus === 'Paid' ? 'bg-success' : 'bg-warning'}`}>
-                    {bill.paymentStatus}
-                  </span>
+                <div className="form-text">
+                  Press Enter or click the arrow to process
                 </div>
               </div>
-              
-              <div className="table-responsive">
-                <table className="table table-bordered">
-                  <thead>
-                    <tr>
-                      <th>Product</th>
-                      <th className="text-center">Quantity</th>
-                      <th className="text-end">Unit Price</th>
-                      <th className="text-end">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>
-                        <div>{bill.productName}</div>
-                        <small className="text-muted">Code: {bill.productCode}</small>
-                      </td>
-                      <td className="text-center">{bill.quantity}</td>
-                      <td className="text-end">{formatCurrency(bill.unitPrice)}</td>
-                      <td className="text-end fw-bold">{formatCurrency(bill.totalAmount)}</td>
-                    </tr>
-                  </tbody>
-                </table>
+
+              <div className="card">
+                <div className="card-header">
+                  <h6 className="mb-0">Format Examples</h6>
+                </div>
+                <div className="card-body">
+                  <table className="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>Input</th>
+                        <th>Parsed As</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {examples.map((example, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            <code className="text-primary">{example}</code>
+                          </td>
+                          <td>
+                            <small className="text-muted">
+                              {(() => {
+                                const parsed = parseQuickInput(example);
+                                return `Customer: ${parsed.customerName}, Product: ${parsed.productName}, Qty: ${parsed.quantity}, Price: ${parsed.unitPrice}, Payment: ${parsed.paymentMethod}`;
+                              })()}
+                            </small>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              
-              <div className="row">
-                <div className="col-md-6">
-                  <div className="card">
-                    <div className="card-body">
-                      <h6 className="card-title">Payment Details</h6>
-                      <div className="mb-2">
-                        <small className="text-muted">Method:</small>
-                        <div>{bill.paymentMethod}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className="card">
-                    <div className="card-body">
-                      <h6 className="card-title">Amount Summary</h6>
-                      <div className="d-flex justify-content-between mb-1">
-                        <span>Subtotal:</span>
-                        <span>{formatCurrency(bill.unitPrice * bill.quantity)}</span>
-                      </div>
-                      {bill.discount > 0 && (
-                        <div className="d-flex justify-content-between mb-1 text-danger">
-                          <span>Discount ({bill.discount}%):</span>
-                          <span>-{formatCurrency((bill.unitPrice * bill.quantity) * (bill.discount / 100))}</span>
-                        </div>
-                      )}
-                      {bill.tax > 0 && (
-                        <div className="d-flex justify-content-between mb-1">
-                          <span>Tax ({bill.tax}%):</span>
-                          <span>+{formatCurrency((bill.unitPrice * bill.quantity) * (bill.tax / 100))}</span>
-                        </div>
-                      )}
-                      <hr />
-                      <div className="d-flex justify-content-between fw-bold">
-                        <span>Total:</span>
-                        <span>{formatCurrency(bill.totalAmount)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+
+              <div className="mt-3">
+                <h6>Quick Reference:</h6>
+                <ul className="list-unstyled">
+                  <li><small><strong>Format:</strong> [Customer] [Phone] [Product] [Quantity] [Price] [Payment]</small></li>
+                  <li><small><strong>Phone:</strong> Optional, must start with 01 and 11 digits</small></li>
+                  <li><small><strong>Product:</strong> Must exist in your product list</small></li>
+                  <li><small><strong>Payment:</strong> Cash, Card, bKash, Nagad, Bank (optional, defaults to Cash)</small></li>
+                </ul>
               </div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
-                Close
+              <button 
+                type="button" 
+                className="btn btn-secondary"
+                onClick={() => setQuickInputMode(false)}
+              >
+                Cancel
               </button>
               <button 
                 type="button" 
                 className="btn btn-primary"
-                onClick={() => {
-                  const printWindow = window.open('', '_blank');
-                  const printContent = generateBillHTML(bill);
-                  printWindow.document.write(printContent);
-                  printWindow.document.close();
-                  printWindow.print();
-                }}
+                onClick={handleQuickInputSubmit}
+                disabled={!quickInputText.trim()}
               >
-                <i className="bi bi-printer me-2"></i>
-                Print Bill
+                <i className="bi bi-magic me-2"></i>
+                Process Input
               </button>
             </div>
           </div>
@@ -734,13 +980,527 @@ const DailySalesReport = () => {
     );
   };
 
+  // Bill Input Form Component
+  const BillInputForm = () => {
+    const totals = calculateTotals();
+    
+    return (
+      <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal-dialog modal-xl modal-dialog-centered">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title">Create New Bill</h5>
+              <div className="d-flex gap-2">
+                <button 
+                  type="button"
+                  className="btn btn-sm btn-outline-warning"
+                  onClick={() => {
+                    setQuickInputMode(true);
+                    setShowBillInputForm(false);
+                  }}
+                >
+                  <i className="bi bi-lightning me-1"></i>
+                  Quick Input
+                </button>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={() => setShowBillInputForm(false)}
+                ></button>
+              </div>
+            </div>
+            <form onSubmit={handleBillSubmit}>
+              <div className="modal-body">
+                <div className="row">
+                  {/* Left Column - Customer Info */}
+                  <div className="col-md-6">
+                    <div className="card h-100">
+                      <div className="card-header d-flex justify-content-between align-items-center">
+                        <h6 className="mb-0">Customer Information</h6>
+                        <small className="text-muted">Click on recent customer</small>
+                      </div>
+                      <div className="card-body">
+                        <div className="mb-3">
+                          <label className="form-label">Invoice Number *</label>
+                          <div className="input-group">
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={billFormData.invoiceNo}
+                              onChange={(e) => setBillFormData({...billFormData, invoiceNo: e.target.value})}
+                              required
+                            />
+                            <button 
+                              type="button"
+                              className="btn btn-outline-secondary"
+                              onClick={() => setBillFormData({...billFormData, invoiceNo: generateInvoiceNumber()})}
+                            >
+                              <i className="bi bi-arrow-clockwise"></i>
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="mb-3">
+                          <label className="form-label">Customer Name *</label>
+                          <input
+                            ref={customerNameRef}
+                            type="text"
+                            className="form-control"
+                            value={billFormData.customerName}
+                            onChange={(e) => {
+                              setBillFormData({...billFormData, customerName: e.target.value});
+                              setShowCustomerSuggestions(true);
+                            }}
+                            placeholder="Type name or select below"
+                            required
+                          />
+                          
+                          {/* Customer Suggestions */}
+                          {showCustomerSuggestions && recentCustomers.length > 0 && (
+                            <div className="list-group mt-1" style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                              <button
+                                type="button"
+                                className="list-group-item list-group-item-action"
+                                onClick={() => {
+                                  setBillFormData({...billFormData, customerName: 'Walk-in Customer', customerPhone: ''});
+                                  setShowCustomerSuggestions(false);
+                                }}
+                              >
+                                <i className="bi bi-person me-2"></i>
+                                <strong>Walk-in Customer</strong>
+                              </button>
+                              {recentCustomers.map((customer, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  className="list-group-item list-group-item-action"
+                                  onClick={() => handleCustomerSelect(customer)}
+                                >
+                                  <div className="d-flex justify-content-between">
+                                    <div>
+                                      <i className="bi bi-person-check me-2"></i>
+                                      <strong>{customer.name}</strong>
+                                      {customer.phone && (
+                                        <span className="ms-2 text-muted">{customer.phone}</span>
+                                      )}
+                                    </div>
+                                    <small className="text-muted">
+                                      {new Date(customer.lastPurchase).toLocaleDateString()}
+                                    </small>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="row mb-3">
+                          <div className="col-md-6">
+                            <label className="form-label">Phone Number</label>
+                            <input
+                              type="tel"
+                              className="form-control"
+                              value={billFormData.customerPhone}
+                              onChange={(e) => setBillFormData({...billFormData, customerPhone: e.target.value})}
+                              placeholder="01XXXXXXXXX"
+                            />
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label">Date</label>
+                            <input
+                              type="date"
+                              className="form-control"
+                              value={selectedDate}
+                              onChange={(e) => setSelectedDate(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="mb-3">
+                          <label className="form-label">Address</label>
+                          <textarea
+                            className="form-control"
+                            rows="2"
+                            value={billFormData.customerAddress}
+                            onChange={(e) => setBillFormData({...billFormData, customerAddress: e.target.value})}
+                            placeholder="Optional"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Right Column - Product & Payment */}
+                  <div className="col-md-6">
+                    <div className="card h-100">
+                      <div className="card-header d-flex justify-content-between align-items-center">
+                        <h6 className="mb-0">Product & Payment Details</h6>
+                        <small className="text-muted">Type and select from list</small>
+                      </div>
+                      <div className="card-body">
+                        {/* Product Search */}
+                        <div className="mb-3">
+                          <label className="form-label">Search Product *</label>
+                          <div className="input-group">
+                            <input
+                              ref={productSearchRef}
+                              type="text"
+                              className="form-control"
+                              value={productSearchTerm}
+                              onChange={(e) => setProductSearchTerm(e.target.value)}
+                              placeholder="Type product name or code..."
+                              required
+                            />
+                            <button 
+                              type="button"
+                              className="btn btn-outline-secondary"
+                              onClick={() => {
+                                setProductSearchTerm('');
+                                setBillFormData({...billFormData, productId: '', productName: '', unitPrice: 0});
+                              }}
+                            >
+                              <i className="bi bi-x"></i>
+                            </button>
+                          </div>
+                          
+                          {/* Product Suggestions */}
+                          {showProductSuggestions && filteredProducts.length > 0 && (
+                            <div className="list-group mt-1" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                              {filteredProducts.map(product => (
+                                <button
+                                  key={product.id}
+                                  type="button"
+                                  className="list-group-item list-group-item-action"
+                                  onClick={() => handleProductSelect(product)}
+                                >
+                                  <div className="d-flex justify-content-between align-items-center">
+                                    <div>
+                                      <strong>{product.productName}</strong>
+                                      <br />
+                                      <small className="text-muted">
+                                        Code: {product.productCode} | 
+                                        Price: {formatCurrency(product.sellingPrice || 0)} | 
+                                        Stock: {product.quantity || 0}
+                                      </small>
+                                    </div>
+                                    <i className="bi bi-arrow-right text-primary"></i>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Selected Product Display */}
+                        {billFormData.productId && (
+                          <div className="alert alert-success mb-3">
+                            <div className="d-flex justify-content-between align-items-center">
+                              <div>
+                                <strong>{billFormData.productName}</strong>
+                                <div className="text-muted">
+                                  Price: {formatCurrency(billFormData.unitPrice)} | 
+                                  Code: {products.find(p => p.id === billFormData.productId)?.productCode || 'N/A'}
+                                </div>
+                              </div>
+                              <div className="d-flex gap-2">
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-primary"
+                                  onClick={() => {
+                                    const product = products.find(p => p.id === billFormData.productId);
+                                    if (product) {
+                                      setBillFormData({...billFormData, unitPrice: product.sellingPrice || 0});
+                                    }
+                                  }}
+                                  title="Reset to original price"
+                                >
+                                  <i className="bi bi-arrow-counterclockwise"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => {
+                                    setBillFormData({...billFormData, productId: '', productName: '', unitPrice: 0});
+                                    setProductSearchTerm('');
+                                  }}
+                                  title="Clear selection"
+                                >
+                                  <i className="bi bi-x"></i>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Quantity and Price */}
+                        <div className="row mb-3">
+                          <div className="col-md-6">
+                            <label className="form-label">Quantity *</label>
+                            <div className="input-group">
+                              <button 
+                                type="button"
+                                className="btn btn-outline-secondary"
+                                onClick={() => setBillFormData({...billFormData, quantity: Math.max(1, billFormData.quantity - 1)})}
+                              >
+                                <i className="bi bi-dash"></i>
+                              </button>
+                              <input
+                                type="number"
+                                className="form-control text-center"
+                                min="1"
+                                value={billFormData.quantity}
+                                onChange={(e) => setBillFormData({...billFormData, quantity: e.target.value})}
+                                required
+                              />
+                              <button 
+                                type="button"
+                                className="btn btn-outline-secondary"
+                                onClick={() => setBillFormData({...billFormData, quantity: parseInt(billFormData.quantity) + 1})}
+                              >
+                                <i className="bi bi-plus"></i>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label">Unit Price *</label>
+                            <div className="input-group">
+                              <span className="input-group-text">৳</span>
+                              <input
+                                type="number"
+                                className="form-control"
+                                min="0"
+                                step="0.01"
+                                value={billFormData.unitPrice}
+                                onChange={(e) => setBillFormData({...billFormData, unitPrice: e.target.value})}
+                                required
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Quick Price Buttons */}
+                        <div className="row mb-3">
+                          <div className="col-12">
+                            <label className="form-label">Quick Price Adjust</label>
+                            <div className="d-flex flex-wrap gap-1">
+                              {[50, 100, 200, 500, 1000, 2000].map(price => (
+                                <button
+                                  key={price}
+                                  type="button"
+                                  className="btn btn-sm btn-outline-secondary"
+                                  onClick={() => setBillFormData({...billFormData, unitPrice: price})}
+                                >
+                                  ৳{price}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Discount and Tax */}
+                        <div className="row mb-3">
+                          <div className="col-md-6">
+                            <label className="form-label">Discount (%)</label>
+                            <div className="input-group">
+                              <input
+                                type="number"
+                                className="form-control"
+                                min="0"
+                                max="100"
+                                value={billFormData.discount}
+                                onChange={(e) => setBillFormData({...billFormData, discount: e.target.value})}
+                              />
+                              <span className="input-group-text">%</span>
+                            </div>
+                            <div className="form-text">
+                              Discount: {formatCurrency(totals.discountAmount)}
+                            </div>
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label">Tax (%)</label>
+                            <div className="input-group">
+                              <input
+                                type="number"
+                                className="form-control"
+                                min="0"
+                                value={billFormData.tax}
+                                onChange={(e) => setBillFormData({...billFormData, tax: e.target.value})}
+                              />
+                              <span className="input-group-text">%</span>
+                            </div>
+                            <div className="form-text">
+                              Tax: {formatCurrency(totals.taxAmount)}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Payment Details */}
+                        <div className="row mb-3">
+                          <div className="col-md-6">
+                            <label className="form-label">Payment Status</label>
+                            <select
+                              className="form-select"
+                              value={billFormData.paymentStatus}
+                              onChange={(e) => setBillFormData({...billFormData, paymentStatus: e.target.value})}
+                            >
+                              <option value="Paid">Paid</option>
+                              <option value="Pending">Pending</option>
+                              <option value="Partial">Partial</option>
+                            </select>
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label">Payment Method</label>
+                            <div className="d-flex flex-wrap gap-1">
+                              {['Cash', 'bKash', 'Nagad', 'Card', 'Bank'].map(method => (
+                                <button
+                                  key={method}
+                                  type="button"
+                                  className={`btn btn-sm ${billFormData.paymentMethod === method ? 'btn-primary' : 'btn-outline-primary'}`}
+                                  onClick={() => setBillFormData({...billFormData, paymentMethod: method})}
+                                >
+                                  {method}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Remarks */}
+                        <div className="mb-3">
+                          <label className="form-label">Remarks</label>
+                          <textarea
+                            className="form-control"
+                            rows="2"
+                            value={billFormData.remarks}
+                            onChange={(e) => setBillFormData({...billFormData, remarks: e.target.value})}
+                            placeholder="Any additional notes..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Total Summary */}
+                <div className="card mt-3">
+                  <div className="card-header">
+                    <h6 className="mb-0">Bill Summary</h6>
+                  </div>
+                  <div className="card-body">
+                    <div className="row">
+                      <div className="col-md-8">
+                        <div className="table-responsive">
+                          <table className="table table-bordered">
+                            <tbody>
+                              <tr>
+                                <td width="40%">Subtotal</td>
+                                <td width="20%" className="text-end">{billFormData.quantity} × {formatCurrency(billFormData.unitPrice)}</td>
+                                <td width="40%" className="text-end">{formatCurrency(totals.subtotal)}</td>
+                              </tr>
+                              {billFormData.discount > 0 && (
+                                <tr>
+                                  <td>Discount ({billFormData.discount}%)</td>
+                                  <td className="text-end"></td>
+                                  <td className="text-end text-danger">-{formatCurrency(totals.discountAmount)}</td>
+                                </tr>
+                              )}
+                              {billFormData.tax > 0 && (
+                                <tr>
+                                  <td>Tax ({billFormData.tax}%)</td>
+                                  <td className="text-end"></td>
+                                  <td className="text-end">+{formatCurrency(totals.taxAmount)}</td>
+                                </tr>
+                              )}
+                              <tr className="table-primary">
+                                <td><strong>Grand Total</strong></td>
+                                <td className="text-end"></td>
+                                <td className="text-end"><strong>{formatCurrency(totals.total)}</strong></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      <div className="col-md-4">
+                        <div className="d-grid gap-2 h-100">
+                          <button type="submit" className="btn btn-primary btn-lg">
+                            <i className="bi bi-save me-2"></i>
+                            Save & Print Bill
+                          </button>
+                          <button 
+                            type="button" 
+                            className="btn btn-success btn-lg"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleBillSubmit(e);
+                              const bill = generateBillCopy({
+                                ...billFormData,
+                                date: selectedDate,
+                                quantitySold: parseInt(billFormData.quantity),
+                                totalSale: totals.total
+                              });
+                              // Print after save
+                              setTimeout(() => {
+                                const printWindow = window.open('', '_blank');
+                                printWindow.document.write(generateBillHTML(bill));
+                                printWindow.document.close();
+                                printWindow.print();
+                              }, 500);
+                            }}
+                          >
+                            <i className="bi bi-printer me-2"></i>
+                            Save & Print Now
+                          </button>
+                          <button 
+                            type="button" 
+                            className="btn btn-outline-secondary"
+                            onClick={() => setShowBillInputForm(false)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Main component return
   return (
     <div className="container-fluid py-4">
+      {/* Quick Input Modal */}
+      {quickInputMode && <QuickInputModal />}
+      
+      {/* Bill Input Form Modal */}
+      {showBillInputForm && <BillInputForm />}
+
+      {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>
           <i className="bi bi-calendar-day me-2"></i>
           Daily Sales Report
         </h2>
+        <div className="d-flex gap-2">
+          <button 
+            className="btn btn-warning"
+            onClick={() => setQuickInputMode(true)}
+          >
+            <i className="bi bi-lightning me-2"></i>
+            Quick Input
+          </button>
+          <button 
+            className="btn btn-primary"
+            onClick={() => setShowBillInputForm(true)}
+          >
+            <i className="bi bi-plus-circle me-2"></i>
+            Full Form
+          </button>
+        </div>
       </div>
 
       {/* Company Logo and Header */}
@@ -755,13 +1515,17 @@ const DailySalesReport = () => {
             />
           </div>
           <h3 className="mb-1">Hardware Inventory System</h3>
-          <p className="text-muted">Daily Sales Report & Bill Generation</p>
+          <p className="text-muted">Daily Sales Report & Bill Management</p>
           <hr />
-          <div className="d-flex justify-content-between align-items-center">
-            <div>
-              <h5>Date: {new Date(selectedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</h5>
+          <div className="row align-items-center">
+            <div className="col-md-4 text-start">
+              <h5>Date: {new Date(selectedDate).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}</h5>
             </div>
-            <div>
+            <div className="col-md-4">
               <input 
                 type="date" 
                 className="form-control"
@@ -769,160 +1533,27 @@ const DailySalesReport = () => {
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Bill Generation Controls */}
-      <div className="card shadow-sm border-0 mb-4">
-        <div className="card-header bg-white py-3">
-          <h5 className="mb-0">
-            <i className="bi bi-receipt me-2"></i>
-            Bill Generation & Printing
-          </h5>
-        </div>
-        <div className="card-body">
-          <div className="row g-3">
-            <div className="col-md-4">
-              <div className="card border-primary h-100">
-                <div className="card-body text-center">
-                  <i className="bi bi-printer display-4 text-primary mb-3"></i>
-                  <h5 className="card-title">Print Individual Bills</h5>
-                  <p className="card-text">Select any transaction below and print a professional bill copy</p>
-                </div>
-              </div>
-            </div>
-            <div className="col-md-4">
-              <div className="card border-success h-100">
-                <div className="card-body text-center">
-                  <i className="bi bi-printer-fill display-4 text-success mb-3"></i>
-                  <h5 className="card-title">Print All Bills</h5>
-                  <p className="card-text">Print all transaction bills for the selected date at once</p>
-                  <button 
-                    className="btn btn-success mt-2"
-                    onClick={printAllBills}
-                    disabled={dailySales.length === 0}
-                  >
-                    <i className="bi bi-printer me-2"></i>
-                    Print All ({dailySales.length})
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="col-md-4">
-              <div className="card border-info h-100">
-                <div className="card-body text-center">
-                  <i className="bi bi-cloud-arrow-up display-4 text-info mb-3"></i>
-                  <h5 className="card-title">Submit & Save</h5>
-                  <p className="card-text">Submit report and save all bills to the system</p>
-                  <button 
-                    className="btn btn-info mt-2"
-                    onClick={() => setShowSubmitSection(true)}
-                    disabled={dailySales.length === 0}
-                  >
-                    <i className="bi bi-upload me-2"></i>
-                    Submit Report
-                  </button>
-                </div>
-              </div>
+            <div className="col-md-4 text-end">
+              <button 
+                className="btn btn-outline-info"
+                onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+              >
+                <i className="bi bi-calendar-check me-2"></i>
+                Today
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Submit Report Section */}
-      {showSubmitSection && (
-        <div className="card shadow-sm border-0 mb-4">
-          <div className="card-header bg-white py-3">
-            <h5 className="mb-0">
-              <i className="bi bi-cloud-check me-2"></i>
-              Confirm Report Submission
-            </h5>
-          </div>
-          <div className="card-body">
-            <div className="alert alert-info">
-              <i className="bi bi-info-circle me-2"></i>
-              You are about to submit the sales report for {new Date(selectedDate).toLocaleDateString()}
-            </div>
-            
-            <div className="row">
-              <div className="col-md-6">
-                <div className="card">
-                  <div className="card-body">
-                    <h6 className="card-title">Submission Summary</h6>
-                    <ul className="list-group list-group-flush">
-                      <li className="list-group-item d-flex justify-content-between">
-                        <span>Total Transactions:</span>
-                        <span className="fw-bold">{dailySales.length}</span>
-                      </li>
-                      <li className="list-group-item d-flex justify-content-between">
-                        <span>Total Products:</span>
-                        <span className="fw-bold">{totals.totalQuantity}</span>
-                      </li>
-                      <li className="list-group-item d-flex justify-content-between">
-                        <span>Total Revenue:</span>
-                        <span className="fw-bold text-success">{formatCurrency(totals.totalRevenue)}</span>
-                      </li>
-                      <li className="list-group-item d-flex justify-content-between">
-                        <span>Bills to Generate:</span>
-                        <span className="fw-bold text-primary">{dailySales.length}</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="card">
-                  <div className="card-body">
-                    <h6 className="card-title">What will happen?</h6>
-                    <div className="mb-3">
-                      <i className="bi bi-check-circle-fill text-success me-2"></i>
-                      <span>Bill copies will be automatically generated</span>
-                    </div>
-                    <div className="mb-3">
-                      <i className="bi bi-check-circle-fill text-success me-2"></i>
-                      <span>All bills will be stored in the system database</span>
-                    </div>
-                    <div className="mb-3">
-                      <i className="bi bi-check-circle-fill text-success me-2"></i>
-                      <span>Data will be available for profit measurement</span>
-                    </div>
-                    <div className="mb-3">
-                      <i className="bi bi-check-circle-fill text-success me-2"></i>
-                      <span>Bills can be accessed anytime from Documents</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="d-flex justify-content-end gap-2 mt-4">
-              <button 
-                className="btn btn-secondary"
-                onClick={() => setShowSubmitSection(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="btn btn-primary"
-                onClick={handleSubmitReport}
-                disabled={dailySales.length === 0}
-              >
-                <i className="bi bi-cloud-arrow-up me-2"></i>
-                Confirm & Submit
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Summary Cards */}
+      {/* Quick Stats and Actions */}
       <div className="row g-4 mb-4">
         <div className="col-md-3">
           <div className="card border-primary shadow-sm">
             <div className="card-body text-center">
               <h5 className="card-title text-primary">Total Products</h5>
               <h2>{totals.totalQuantity}</h2>
+              <small className="text-muted">Sold today</small>
             </div>
           </div>
         </div>
@@ -931,6 +1562,7 @@ const DailySalesReport = () => {
             <div className="card-body text-center">
               <h5 className="card-title text-success">Total Revenue</h5>
               <h2>{formatCurrency(totals.totalRevenue)}</h2>
+              <small className="text-muted">Today's sales</small>
             </div>
           </div>
         </div>
@@ -939,26 +1571,135 @@ const DailySalesReport = () => {
             <div className="card-body text-center">
               <h5 className="card-title text-info">Transactions</h5>
               <h2>{dailySales.length}</h2>
+              <small className="text-muted">Bills today</small>
             </div>
           </div>
         </div>
         <div className="col-md-3">
           <div className="card border-warning shadow-sm">
             <div className="card-body text-center">
-              <h5 className="card-title text-warning">Bills to Print</h5>
-              <h2>{dailySales.length}</h2>
+              <h5 className="card-title text-warning">Pending Bills</h5>
+              <h2>{dailySales.filter(s => s.paymentStatus === 'Pending').length}</h2>
+              <small className="text-muted">To collect</small>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Individual Sales with Bill Generation Options */}
-      <div className="card shadow-sm border-0">
+      {/* Bill Management Actions */}
+      <div className="card shadow-sm border-0 mb-4">
         <div className="card-header bg-white py-3">
           <h5 className="mb-0">
-            <i className="bi bi-receipt-cutoff me-2"></i>
-            Sales Transactions - Generate Bill Copies
+            <i className="bi bi-receipt me-2"></i>
+            Bill Management
           </h5>
+        </div>
+        <div className="card-body">
+          <div className="row g-3">
+            <div className="col-md-3">
+              <div className="card border-primary h-100">
+                <div className="card-body text-center">
+                  <i className="bi bi-lightning display-4 text-primary mb-3"></i>
+                  <h5 className="card-title">Quick Input</h5>
+                  <p className="card-text">Type everything in one line</p>
+                  <button 
+                    className="btn btn-primary mt-2 w-100"
+                    onClick={() => setQuickInputMode(true)}
+                  >
+                    <i className="bi bi-lightning me-2"></i>
+                    Quick Input
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card border-success h-100">
+                <div className="card-body text-center">
+                  <i className="bi bi-printer display-4 text-success mb-3"></i>
+                  <h5 className="card-title">Print All</h5>
+                  <p className="card-text">Print all bills for selected date</p>
+                  <button 
+                    className="btn btn-success mt-2 w-100"
+                    onClick={printAllBills}
+                    disabled={dailySales.length === 0}
+                  >
+                    <i className="bi bi-printer me-2"></i>
+                    Print ({dailySales.length})
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card border-info h-100">
+                <div className="card-body text-center">
+                  <i className="bi bi-cloud-arrow-up display-4 text-info mb-3"></i>
+                  <h5 className="card-title">Submit Report</h5>
+                  <p className="card-text">Save all bills to system</p>
+                  <button 
+                    className="btn btn-info mt-2 w-100"
+                    onClick={() => setShowSubmitSection(true)}
+                    disabled={dailySales.length === 0}
+                  >
+                    <i className="bi bi-upload me-2"></i>
+                    Submit
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card border-warning h-100">
+                <div className="card-body text-center">
+                  <i className="bi bi-file-earmark-excel display-4 text-warning mb-3"></i>
+                  <h5 className="card-title">Export Data</h5>
+                  <p className="card-text">Export to Excel/PDF</p>
+                  <button 
+                    className="btn btn-warning mt-2 w-100"
+                    onClick={() => alert('Export feature coming soon!')}
+                    disabled={dailySales.length === 0}
+                  >
+                    <i className="bi bi-download me-2"></i>
+                    Export
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Daily Bills Table */}
+      <div className="card shadow-sm border-0">
+        <div className="card-header bg-white py-3">
+          <div className="d-flex justify-content-between align-items-center">
+            <h5 className="mb-0">
+              <i className="bi bi-receipt-cutoff me-2"></i>
+              Today's Bills ({dailySales.length})
+            </h5>
+            <div className="d-flex gap-2">
+              <button 
+                className="btn btn-sm btn-outline-success"
+                onClick={printAllBills}
+                disabled={dailySales.length === 0}
+              >
+                <i className="bi bi-printer me-2"></i>
+                Print All
+              </button>
+              <button 
+                className="btn btn-sm btn-outline-primary"
+                onClick={() => setShowBillInputForm(true)}
+              >
+                <i className="bi bi-plus me-2"></i>
+                Add Bill
+              </button>
+              <button 
+                className="btn btn-sm btn-outline-warning"
+                onClick={() => setQuickInputMode(true)}
+              >
+                <i className="bi bi-lightning me-2"></i>
+                Quick Add
+              </button>
+            </div>
+          </div>
         </div>
         <div className="card-body">
           {dailySales.length > 0 ? (
@@ -968,27 +1709,31 @@ const DailySalesReport = () => {
                   <tr>
                     <th>SL</th>
                     <th>Invoice No</th>
+                    <th>Time</th>
                     <th>Customer</th>
                     <th>Product</th>
-                    <th className="text-center">Quantity</th>
-                    <th>Total Amount</th>
-                    <th>Status</th>
-                    <th className="text-center">Bill Actions</th>
+                    <th className="text-center">Qty</th>
+                    <th>Amount</th>
+                    <th>Payment</th>
+                    <th className="text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {dailySales.map((sale, index) => {
                     const product = products.find(p => p.id === sale.productId) || {};
-                    const bill = generateBillCopy(sale);
+                    const saleTime = sale.createdAt ? new Date(sale.createdAt) : new Date();
                     
                     return (
                       <tr key={index}>
                         <td>{index + 1}</td>
                         <td>
-                          <code>{sale.invoiceNo || `INV-${index + 1}`}</code>
+                          <code className="text-primary">{sale.invoiceNo || `INV-${index + 1}`}</code>
+                          <br />
+                          <small className="text-muted">{saleTime.toLocaleTimeString()}</small>
                         </td>
+                        <td>{saleTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
                         <td>
-                          <div className="fw-medium">{sale.customerName || 'Walk-in Customer'}</div>
+                          <div className="fw-medium">{sale.customerName || 'Walk-in'}</div>
                           {sale.customerPhone && (
                             <small className="text-muted">{sale.customerPhone}</small>
                           )}
@@ -1012,9 +1757,11 @@ const DailySalesReport = () => {
                           }`}>
                             {sale.paymentStatus || 'Pending'}
                           </span>
+                          <br />
+                          <small className="text-muted">{sale.paymentMethod || 'Cash'}</small>
                         </td>
                         <td>
-                          <div className="d-flex gap-2 justify-content-center">
+                          <div className="d-flex gap-1 justify-content-center">
                             <button 
                               className="btn btn-sm btn-outline-primary"
                               onClick={() => printBill(sale)}
@@ -1024,21 +1771,23 @@ const DailySalesReport = () => {
                             </button>
                             <button 
                               className="btn btn-sm btn-outline-info"
-                              onClick={() => setSelectedBill(bill)}
-                              title="Preview Bill"
+                              title="View Details"
+                              onClick={() => {
+                                const bill = generateBillCopy(sale);
+                                setSelectedBill(bill);
+                              }}
                             >
                               <i className="bi bi-eye"></i>
                             </button>
                             <button 
                               className="btn btn-sm btn-outline-success"
+                              title="Edit"
                               onClick={() => {
-                                const bill = generateBillCopy(sale);
-                                addSalesBill(bill);
-                                alert('Bill saved to system!');
+                                // Navigate to edit or show edit modal
+                                alert('Edit feature coming soon!');
                               }}
-                              title="Save Bill"
                             >
-                              <i className="bi bi-save"></i>
+                              <i className="bi bi-pencil"></i>
                             </button>
                           </div>
                         </td>
@@ -1046,26 +1795,216 @@ const DailySalesReport = () => {
                     );
                   })}
                 </tbody>
+                <tfoot className="table-light">
+                  <tr>
+                    <th colSpan="5" className="text-end">Totals:</th>
+                    <th className="text-center">{totals.totalQuantity}</th>
+                    <th className="text-success fw-bold">{formatCurrency(totals.totalRevenue)}</th>
+                    <th colSpan="2"></th>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           ) : (
             <div className="text-center py-5">
               <i className="bi bi-receipt display-1 text-muted"></i>
-              <h4 className="mt-3">No sales data for selected date</h4>
+              <h4 className="mt-3">No bills for selected date</h4>
               <p className="text-muted">
-                Select a different date or add sales records to generate bills
+                Create a new bill or select a different date
               </p>
+              <div className="d-flex justify-content-center gap-3 mt-3">
+                <button 
+                  className="btn btn-warning"
+                  onClick={() => setQuickInputMode(true)}
+                >
+                  <i className="bi bi-lightning me-2"></i>
+                  Quick Input
+                </button>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => setShowBillInputForm(true)}
+                >
+                  <i className="bi bi-plus-circle me-2"></i>
+                  Full Form
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
 
+      {/* Submit Report Modal */}
+      {showSubmitSection && (
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Submit Daily Report</h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={() => setShowSubmitSection(false)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="alert alert-info">
+                  <i className="bi bi-info-circle me-2"></i>
+                  You are about to submit the sales report for {new Date(selectedDate).toLocaleDateString()}
+                </div>
+                
+                <div className="card mb-3">
+                  <div className="card-body">
+                    <h6 className="card-title">Summary</h6>
+                    <div className="row">
+                      <div className="col-6">
+                        <small className="text-muted">Total Bills</small>
+                        <div className="fw-bold">{dailySales.length}</div>
+                      </div>
+                      <div className="col-6">
+                        <small className="text-muted">Total Amount</small>
+                        <div className="fw-bold text-success">{formatCurrency(totals.totalRevenue)}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="alert alert-warning">
+                  <i className="bi bi-exclamation-triangle me-2"></i>
+                  <strong>Note:</strong> Once submitted, bills will be finalized and cannot be edited.
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary"
+                  onClick={() => setShowSubmitSection(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-primary"
+                  onClick={handleSubmitReport}
+                >
+                  <i className="bi bi-check-circle me-2"></i>
+                  Confirm Submission
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bill Preview Modal */}
       {selectedBill && (
-        <BillPreviewModal 
-          bill={selectedBill} 
-          onClose={() => setSelectedBill(null)} 
-        />
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-lg modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Bill Preview - {selectedBill.invoiceNo}</h5>
+                <button type="button" className="btn-close" onClick={() => setSelectedBill(null)}></button>
+              </div>
+              <div className="modal-body">
+                <div className="d-flex justify-content-between mb-4">
+                  <div>
+                    <h6 className="mb-1">Customer: {selectedBill.customerName}</h6>
+                    <small className="text-muted">Date: {new Date(selectedBill.date).toLocaleDateString()}</small>
+                  </div>
+                  <div className="text-end">
+                    <span className={`badge ${selectedBill.paymentStatus === 'Paid' ? 'bg-success' : 'bg-warning'}`}>
+                      {selectedBill.paymentStatus}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="table-responsive">
+                  <table className="table table-bordered">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th className="text-center">Quantity</th>
+                        <th className="text-end">Unit Price</th>
+                        <th className="text-end">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <div>{selectedBill.productName}</div>
+                          <small className="text-muted">Code: {selectedBill.productCode}</small>
+                        </td>
+                        <td className="text-center">{selectedBill.quantity}</td>
+                        <td className="text-end">{formatCurrency(selectedBill.unitPrice)}</td>
+                        <td className="text-end fw-bold">{formatCurrency(selectedBill.totalAmount)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="card">
+                      <div className="card-body">
+                        <h6 className="card-title">Payment Details</h6>
+                        <div className="mb-2">
+                          <small className="text-muted">Method:</small>
+                          <div>{selectedBill.paymentMethod}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="card">
+                      <div className="card-body">
+                        <h6 className="card-title">Amount Summary</h6>
+                        <div className="d-flex justify-content-between mb-1">
+                          <span>Subtotal:</span>
+                          <span>{formatCurrency(selectedBill.unitPrice * selectedBill.quantity)}</span>
+                        </div>
+                        {selectedBill.discount > 0 && (
+                          <div className="d-flex justify-content-between mb-1 text-danger">
+                            <span>Discount ({selectedBill.discount}%):</span>
+                            <span>-{formatCurrency((selectedBill.unitPrice * selectedBill.quantity) * (selectedBill.discount / 100))}</span>
+                          </div>
+                        )}
+                        {selectedBill.tax > 0 && (
+                          <div className="d-flex justify-content-between mb-1">
+                            <span>Tax ({selectedBill.tax}%):</span>
+                            <span>+{formatCurrency((selectedBill.unitPrice * selectedBill.quantity) * (selectedBill.tax / 100))}</span>
+                          </div>
+                        )}
+                        <hr />
+                        <div className="d-flex justify-content-between fw-bold">
+                          <span>Total:</span>
+                          <span>{formatCurrency(selectedBill.totalAmount)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setSelectedBill(null)}>
+                  Close
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-primary"
+                  onClick={() => {
+                    const printWindow = window.open('', '_blank');
+                    const printContent = generateBillHTML(selectedBill);
+                    printWindow.document.write(printContent);
+                    printWindow.document.close();
+                    printWindow.print();
+                  }}
+                >
+                  <i className="bi bi-printer me-2"></i>
+                  Print Bill
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
