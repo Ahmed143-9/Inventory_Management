@@ -50,48 +50,52 @@ const ProfitLossReport = () => {
         return 0;
       })();
       
-      // Calculate total quantity from purchases
-      const totalPurchased = purchases
-        .filter(p => p.productId === productId)
-        .reduce((sum, purchase) => sum + (purchase.quantity || 0), 0);
-      
-      // Calculate total sold quantity from sales
+      // Calculate total sold quantity from sales (this is the key change)
       const totalSold = sales
         .filter(s => s.productId === productId)
-        .reduce((sum, sale) => sum + (sale.quantity || 0), 0);
+        .reduce((sum, sale) => sum + (sale.quantitySold || 0), 0);
       
-      // Total investment (cost of all purchased items)
-      const totalInvestment = totalPurchased * cost;
+      // Calculate total purchase quantity from purchases
+      const totalPurchased = purchases
+        .filter(p => p.productId === productId)
+        .reduce((sum, purchase) => sum + (purchase.quantityPurchased || 0), 0);
       
-      // Total revenue (sell price * quantity sold)
-      const totalRevenue = totalSold * price;
+      // Calculate cost of goods sold (COGS) based on actual sales
+      const cogs = totalSold * cost;
       
-      // Total profit
-      const totalProfit = totalRevenue - (totalSold * cost);
+      // Calculate revenue based on actual sales
+      const revenue = totalSold * price;
       
-      // Profit margin percentage
-      const profitMargin = totalSold > 0 && (totalSold * cost) > 0 ? 
-        (totalProfit / (totalSold * cost)) * 100 : 0;
+      // Calculate profit only for sold items
+      const totalProfit = revenue - cogs;
+      
+      // Calculate profit margin percentage based on actual sales
+      const profitMargin = totalSold > 0 && cogs > 0 ? 
+        (totalProfit / cogs) * 100 : 0;
       
       return {
         productId,
         productName,
         productCode,
-        quantity,
-        totalInvestment,
-        totalRevenue,
+        quantityInStock: quantity, // Current stock level
+        totalPurchased,
+        totalSold,
+        cogs,
+        revenue,
         totalProfit,
         profitMargin
       };
-    });
+    }).filter(item => item.totalSold > 0); // Only show products that have been sold
   }, [products, purchases, sales]);
 
   // Calculate totals
   const totals = useMemo(() => {
     return {
-      totalInvestment: profitData.reduce((sum, item) => sum + (item.totalInvestment || 0), 0),
-      totalRevenue: profitData.reduce((sum, item) => sum + (item.totalRevenue || 0), 0),
-      totalProfit: profitData.reduce((sum, item) => sum + (item.totalProfit || 0), 0)
+      totalCOGS: profitData.reduce((sum, item) => sum + (item.cogs || 0), 0),
+      totalRevenue: profitData.reduce((sum, item) => sum + (item.revenue || 0), 0),
+      totalProfit: profitData.reduce((sum, item) => sum + (item.totalProfit || 0), 0),
+      totalPurchased: profitData.reduce((sum, item) => sum + (item.totalPurchased || 0), 0),
+      totalSold: profitData.reduce((sum, item) => sum + (item.totalSold || 0), 0)
     };
   }, [profitData]);
 
@@ -99,11 +103,11 @@ const ProfitLossReport = () => {
   const adjustedProfit = (totals.totalProfit || 0) - (totalExtraCost || 0);
   
   // Overall profit margins
-  const overallProfitMargin = (totals.totalInvestment || 0) > 0 ? 
-    ((totals.totalProfit || 0) / (totals.totalInvestment || 0)) * 100 : 0;
+  const overallProfitMargin = (totals.totalCOGS || 0) > 0 ? 
+    ((totals.totalProfit || 0) / (totals.totalCOGS || 0)) * 100 : 0;
     
-  const adjustedProfitMargin = (totals.totalInvestment || 0) > 0 ? 
-    ((adjustedProfit || 0) / (totals.totalInvestment || 0)) * 100 : 0;
+  const adjustedProfitMargin = (totals.totalCOGS || 0) > 0 ? 
+    ((adjustedProfit || 0) / (totals.totalCOGS || 0)) * 100 : 0;
 
   // Sort profit data
   const sortedProfitData = useMemo(() => {
@@ -120,8 +124,8 @@ const ProfitLossReport = () => {
           bValue = b.totalProfit;
           break;
         case 'quantity':
-          aValue = a.quantity;
-          bValue = b.quantity;
+          aValue = a.quantityInStock;
+          bValue = b.quantityInStock;
           break;
         default: // profitMargin
           aValue = a.profitMargin;
@@ -171,8 +175,8 @@ const ProfitLossReport = () => {
         <div className="col-md-3">
           <div className="card border-primary shadow-sm">
             <div className="card-body">
-              <h5 className="card-title text-primary">Total Investment</h5>
-              <h2>{formatCurrency(totals.totalInvestment)}</h2>
+              <h5 className="card-title text-primary">Total COGS</h5>
+              <h2>{formatCurrency(totals.totalCOGS)}</h2>
             </div>
           </div>
         </div>
@@ -351,8 +355,10 @@ const ProfitLossReport = () => {
                 <thead className="table-light">
                   <tr>
                     <th>Product</th>
-                    <th>Quantity</th>
-                    <th>Investment</th>
+                    <th>In Stock</th>
+                    <th>Purchased</th>
+                    <th>Sold</th>
+                    <th>COGS</th>
                     <th>Revenue</th>
                     <th>Gross Profit</th>
                     <th>Profit Margin</th>
@@ -365,9 +371,11 @@ const ProfitLossReport = () => {
                         <div className="fw-bold">{item.productName}</div>
                         <small className="text-muted">{item.productCode}</small>
                       </td>
-                      <td>{item.quantity}</td>
-                      <td>{formatCurrency(item.totalInvestment)}</td>
-                      <td>{formatCurrency(item.totalRevenue)}</td>
+                      <td>{item.quantityInStock}</td>
+                      <td>{item.totalPurchased}</td>
+                      <td>{item.totalSold}</td>
+                      <td>{formatCurrency(item.cogs)}</td>
+                      <td>{formatCurrency(item.revenue)}</td>
                       <td>
                         <span className={item.totalProfit >= 0 ? 'text-success' : 'text-danger'}>
                           {formatCurrency(item.totalProfit)}

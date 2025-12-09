@@ -31,6 +31,7 @@ import UserProfile from './pages/UserProfile';
 import Settings from './pages/Settings';
 import Documents from './pages/Documents';
 import NotFound from './pages/NotFound';
+import DailySalesReport from './pages/DailySalesReport';
 // Import CSS
 import './App.css';
 
@@ -77,6 +78,7 @@ function MainLayout() {
             <Route path="/reports/profit-loss" element={<ProfitLossReport />} />
             <Route path="/reports/purchases" element={<PurchaseReport />} />
             <Route path="/reports/sales" element={<SalesReport />} />
+            <Route path="/daily-sales-report" element={<DailySalesReport />} />
             <Route path="/documents" element={<Documents />} />
             <Route path="/profile" element={<UserProfile />} />
             <Route path="/settings" element={<Settings />} />

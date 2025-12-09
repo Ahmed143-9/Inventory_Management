@@ -13,10 +13,12 @@ import ViewProduct from '../pages/ViewProduct';
 import ImportProductsPage from '../pages/ImportProductsPage';
 import Reports from '../pages/Reports';
 import StockReport from '../pages/StockReport';
+import ProfitLossReport from '../pages/ProfitLossReport'; // Import the actual ProfitLossReport component
 import AdminPanel from '../pages/AdminPanel';
 import Settings from '../pages/Settings';
 import UserProfile from '../pages/UserProfile';
 import NotFound from '../pages/NotFound';
+import DailySalesReport from '../pages/DailySalesReport';
 
 // Placeholder components for missing pages
 const Purchase = () => <div>Purchase Page (Coming Soon)</div>;
@@ -28,7 +30,6 @@ const AddSupplier = () => <div>Add Supplier Page (Coming Soon)</div>;
 const Customers = () => <div>Customers Page (Coming Soon)</div>;
 const AddCustomer = () => <div>Add Customer Page (Coming Soon)</div>;
 const SalesReport = () => <div>Sales Report Page (Coming Soon)</div>;
-const ProfitLossReport = () => <div>Profit Loss Report Page (Coming Soon)</div>;
 
 const AppRoutes = () => {
   return (
@@ -97,6 +98,13 @@ const AppRoutes = () => {
       <Route path="/reports/profit-loss" element={
         <ProtectedRoute>
           <ProfitLossReport />
+        </ProtectedRoute>
+      } />
+      
+      {/* Daily Sales Report Route */}
+      <Route path="/daily-sales-report" element={
+        <ProtectedRoute>
+          <DailySalesReport />
         </ProtectedRoute>
       } />
       

@@ -216,9 +216,9 @@ const Dashboard = () => {
             <div className="card-body">
               <div className="row g-3">
                 <div className="col-md-3 col-6">
-                  <Link to="/products/add" className="btn btn-outline-primary w-100">
-                    <i className="bi bi-plus-circle me-2"></i>
-                    Add Product
+                  <Link to="/daily-sales-report" className="btn btn-outline-primary w-100">
+                    <i className="bi bi-calendar-day me-2"></i>
+                    Daily Sell
                   </Link>
                 </div>
                 <div className="col-md-3 col-6">
